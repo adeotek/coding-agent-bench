@@ -1,0 +1,10 @@
+# run outputs (job results, rendered configs, logs)
+results/
+
+# local credentials / overrides
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/

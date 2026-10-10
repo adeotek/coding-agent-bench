@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Render the effective Harbor JobConfig for a benchmark profile.
+
+Profiles
+--------
+smoke   the hello-world task, all agents (pipeline + auth check)
+subset  terminal-bench@2.0, first N_TASKS tasks (cheap iteration)
+full    terminal-bench@2.0, all tasks
+
+Configuration is read from environment variables with defaults (see
+.env.example); results/effective-<profile>.json is written and its path is
+printed to stdout. Diagnostics go to stderr so callers can capture the path.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import json
+import os
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def env(name: str, default: str | None = None) -> str | None:
+    value = os.environ.get(name)
+    return value if value not in (None, "") else default
+
+
+def env_int(name: str, default: int) -> int:
+    raw = env(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        sys.exit(f"render_config: {name}={raw!r} is not an integer")
+
+
+def agents(_profile: str) -> list[dict]:
+    zen = env("ZEN_MODEL", "opencode-go/glm-5.3-flash")
+    claude = env("CLAUDE_MODEL", "anthropic/claude-sonnet-5")
+    entries: list[tuple[str, dict]] = [
+        (
+            "moca",
+            {
+                "import_path": "agents.moca:Moca",
+                "model_name": zen,
+                "kwargs": {"version": env("MOCA_VERSION", "v0.3.0-beta")},
+            },
+        ),
+        ("opencode", {"name": "opencode", "model_name": zen}),
+        ("pi", {"name": "pi", "model_name": zen}),
+        ("claude-code", {"name": "claude-code", "model_name": claude}),
+    ]
+    selected = env("AGENTS")
+    if selected:
+        wanted = [s.strip() for s in selected.split(",") if s.strip()]
+        unknown = [w for w in wanted if w not in {k for k, _ in entries}]
+        if unknown:
+            sys.exit(f"render_config: unknown AGENTS entries: {', '.join(unknown)}")
+        entries = [(k, v) for k, v in entries if k in wanted]
+    return [v for _, v in entries]
+
+
+def build(profile: str) -> dict:
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    cfg: dict = {
+        "job_name": f"cab-{profile}-{stamp}",
+        "jobs_dir": env("JOBS_DIR", "results/jobs"),
+        "n_attempts": env_int("N_ATTEMPTS", 1),
+        "n_concurrent_trials": env_int("N_CONCURRENT", 2),
+        "environment": {"type": "docker"},
+        "agents": agents(profile),
+    }
+    if profile == "smoke":
+        cfg["tasks"] = [{"name": "hello-world/hello-world"}]
+        return cfg
+    dataset: dict = {
+        "name": env("TB_DATASET", "terminal-bench"),
+        "version": env("TB_VERSION", "2.0"),
+    }
+    if profile == "subset":
+        names = env("TASK_NAMES")
+        if names:
+            dataset["task_names"] = [s.strip() for s in names.split(",") if s.strip()]
+        else:
+            dataset["n_tasks"] = env_int("N_TASKS", 20)
+    cfg["datasets"] = [dataset]
+    return cfg
+
+
+def main() -> None:
+    profile = sys.argv[1] if len(sys.argv) > 1 else "subset"
+    if profile not in ("smoke", "subset", "full"):
+        sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full)")
+    cfg = build(profile)
+    out = REPO / "results" / f"effective-{profile}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(cfg, indent=2) + "\n")
+    print(out)
+
+
+if __name__ == "__main__":
+    main()
