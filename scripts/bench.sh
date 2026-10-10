@@ -8,7 +8,7 @@
 #   ./scripts/bench.sh dry-run [profile]  validate the rendered job config
 #   ./scripts/bench.sh run <profile> [args...]   smoke | subset | full
 #   ./scripts/bench.sh render [profile]   write results/effective-<p>.json
-#   ./scripts/bench.sh view               browse job results
+#   ./scripts/bench.sh view [args...]     browse job results (args pass to harbor view)
 #   ./scripts/bench.sh prune              reclaim docker disk
 #
 # See README.md for the full walkthrough.
@@ -137,9 +137,9 @@ cmd_run() { # profile [extra harbor args...]
     "$HARBOR" run --config "$cfg" "${AE_ARGS[@]}" "$@"
 }
 
-cmd_view() {
+cmd_view() { # [extra harbor view args...]
   need_harbor
-  "$HARBOR" view "$JOBS_DIR"
+  "$HARBOR" view "$JOBS_DIR" "$@"
 }
 
 cmd_prune() {
@@ -154,7 +154,7 @@ case "${1:-help}" in
   dry-run | dryrun) shift || true; cmd_dry_run "${1:-subset}" ;;
   run) shift || true; cmd_run "$@" ;;
   render) shift || true; render "${1:-subset}" ;;
-  view) cmd_view ;;
+  view) shift || true; cmd_view "$@" ;;
   prune) cmd_prune ;;
   help | -h | --help) sed -n '2,16p' "$0" ;;
   *) die "unknown command '${1}' — see ./scripts/bench.sh help" ;;

@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup doctor probe dry-run smoke subset full render view prune
+.PHONY: help setup doctor probe dry-run smoke subset full render view net-view prune
 
 help: ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-10s %s\n", $$1, $$2}'
@@ -30,8 +30,11 @@ full: ## run full Terminal-Bench 2.0 (expensive: time, tokens, disk)
 render: ## render the effective config to results/ and print its path
 	./scripts/bench.sh render $(or $(ARGS),subset)
 
-view: ## browse job results in the web viewer
+view: ## browse job results in the web viewer (bound to 127.0.0.1)
 	./scripts/bench.sh view
+
+net-view: ## browse job results bound to 0.0.0.0 (LAN access; the viewer has no auth)
+	./scripts/bench.sh view --host 0.0.0.0
 
 prune: ## reclaim docker disk (image + system prune)
 	./scripts/bench.sh prune

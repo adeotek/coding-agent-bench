@@ -93,7 +93,8 @@ make full           # whole dataset (100+ tasks) × 4 agents — expensive: hour
 ### Viewing results
 
 ```bash
-make view           # Harbor's web viewer over results/jobs
+make view           # Harbor's web viewer over results/jobs (localhost only)
+make net-view       # same viewer bound to 0.0.0.0 (network access — mind your firewall; the viewer is unauthenticated)
 ```
 
 Job outputs live under `results/jobs/<job-name>/`: per-trial agent logs (`agent/moca.txt`, `agent/moca-session.jsonl`, `opencode.txt`, `pi.txt`, `claude-code.txt`), verifier output, and reward. Handy extras: `harbor job list`, `harbor analyze <job>`.
