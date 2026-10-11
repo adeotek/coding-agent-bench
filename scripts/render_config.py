@@ -50,8 +50,22 @@ def agents(_profile: str) -> list[dict]:
             },
         ),
         ("opencode", {"name": "opencode", "model_name": zen}),
-        ("pi", {"name": "pi", "model_name": zen}),
-        ("claude-code", {"name": "claude-code", "model_name": claude}),
+        (
+            "pi",
+            {
+                "name": "pi",
+                "model_name": zen,
+                "kwargs": {"version": env("PI_VERSION", "1.1.0")},
+            },
+        ),
+        (
+            "claude-code",
+            {
+                "name": "claude-code",
+                "model_name": claude,
+                "kwargs": {"version": env("CLAUDE_VERSION", "2.1.296")},
+            },
+        ),
     ]
     selected = env("AGENTS")
     if selected:

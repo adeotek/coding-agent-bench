@@ -108,6 +108,8 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
 | `MOCA_VERSION` | `v0.3.0-beta` | pinned moca release package |
+| `PI_VERSION` | `1.1.0` | pinned Pi release (npm) |
+| `CLAUDE_VERSION` | `2.1.296` | pinned Claude Code release (npm) |
 | `N_TASKS` | `20` | subset size |
 | `TASK_NAMES` | — | comma-separated task names (overrides `N_TASKS`) |
 | `N_CONCURRENT` | `2` | concurrent trials (raise on a bigger machine) |
@@ -127,7 +129,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **Harbor**: pinned by `HARBOR_VERSION` (`make setup` installs exactly that).
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
 - **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies).
-- **Agents**: OpenCode/Pi/Claude Code currently install their latest npm/first-party versions. To pin, add `"kwargs": {"version": "<v>"}` to the agent entries in `scripts/render_config.py` (all agents accept `--ak version=…`; values must be valid for that tool's package manager).
+- **Agents**: moca, Pi, and Claude Code are pinned (`MOCA_VERSION`, `PI_VERSION`, `CLAUDE_VERSION`); OpenCode installs its latest npm version — pin it the same way (`"kwargs": {"version": "<v>"}` in `scripts/render_config.py`; all agents accept `--ak version=…`; values must be valid for that tool's package manager).
 - The rendered effective config is saved to `results/effective-<profile>.json` and copied into each job directory, so every run records exactly what ran.
 
 ## Extending
