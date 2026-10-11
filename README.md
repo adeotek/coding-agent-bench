@@ -150,15 +150,15 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | Harbor behaving oddly after an upgrade | Keep the pin: bump `HARBOR_VERSION` in `.env`, then `uv tool uninstall harbor && make setup`. |
 | Job failed halfway / rate limits | Re-run; Harbor resumes what's cached. Add `--max-retries 1` for transient API errors. |
 
-## Verified status (2026-10-10, this host)
+## Verified status (2026-10-10 → 2026-10-11, this host)
 
 - Harbor 0.24.0 installed via uv; Docker 29.9.0; the moca adapter imports cleanly against Harbor's own environment.
 - `--dry-run` passes both profiles: smoke = 4 trials; subset = 80 trials (20 tasks × 4 agents).
-- Live credential probes (local binaries, scratch state): moca ✅, OpenCode ✅, Pi ✅ — Claude Code skipped (no credentials staged yet).
-- **Hello-world smoke, in-container, end to end** (see `results/jobs/cab-smoke-*`): moca ✅, OpenCode ✅, Pi ✅ — all reward 1.0.
+- Live credential probes (local binaries, scratch state): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ (2026-10-11 — all four exercised).
+- **Hello-world smoke, in-container, end to end** (see `results/jobs/cab-smoke-*`): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ — all reward 1.0.
   - moca: 32 s; 7,239 in / 59 out tokens; $0.0011 — usage backfilled into the trial result by the adapter (`agent_result` in the trial's `result.json`).
-  - OpenCode / Pi: reward 1.0 as well. Claude Code was not exercised (add its credentials, then re-run `make smoke`).
-- Not yet done on this host: a subset or full Terminal-Bench run — that's the next step, and it's where the real numbers come from.
+  - OpenCode / Pi / Claude Code: reward 1.0 as well.
+- **First subset run (2026-10-11)** — 12 curated TB2 tasks × moca/Claude Code/Pi (36 trials, ~1h31m, $0.62 zen + $0 cash): solved 10/12, 11/12, 9/12 — report and full analysis: `docs/bench-2026-10-11-moca-claude-code-pi.md`.
 
 ## References
 
