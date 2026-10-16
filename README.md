@@ -12,6 +12,7 @@ Harbor runs every trial in a Docker container: it installs the agent CLI *inside
 
 ```
 agents/moca.py          Harbor integration (BaseInstalledAgent) for moca
+agents/opencode_v2.py   Harbor integration for OpenCode v2 (@opencode/cli)
 scripts/bench.sh        main entry point (setup | doctor | probe | dry-run | run | view | prune)
 scripts/render_config.py renders the effective Harbor JobConfig JSON per profile
 scripts/probe-auth.sh   live 1-token credential probes (local binaries, scratch state)
@@ -19,6 +20,12 @@ Makefile                thin wrappers around bench.sh (make help)
 results/                job results + rendered configs (gitignored)
 .env                    your credentials + run knobs (gitignored)
 ```
+
+Two integrations are custom because the upstream packages moved ahead of Harbor 0.24.0:
+`agents/moca.py` (moca is not pre-integrated) and `agents/opencode_v2.py` (Harbor's
+built-in `opencode` agent drives v1: the v2 npm package is `@opencode/cli`, not
+`opencode-ai`, and v2 moved `--model` onto `run` — the subclass overrides install and
+the run command, everything else is inherited).
 
 ## Prerequisites
 
@@ -107,9 +114,11 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.3.0-beta` | pinned moca release package |
-| `PI_VERSION` | `1.1.0` | pinned Pi release (npm) |
-| `CLAUDE_VERSION` | `2.1.296` | pinned Claude Code release (npm) |
+| `MOCA_VERSION` | `v0.5.1-beta` | pinned moca release package |
+| `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
+| `OPENCODE_VERSION` | `2.0.30` | pinned OpenCode release (npm `@opencode/cli`) |
+| `PI_VERSION` | `1.3.0` | pinned Pi release (npm) |
+| `CLAUDE_VERSION` | `2.1.301` | pinned Claude Code release (npm) |
 | `N_TASKS` | `20` | subset size |
 | `TASK_NAMES` | — | comma-separated task names (overrides `N_TASKS`) |
 | `N_CONCURRENT` | `2` | concurrent trials (raise on a bigger machine) |
@@ -129,7 +138,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **Harbor**: pinned by `HARBOR_VERSION` (`make setup` installs exactly that).
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
 - **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies).
-- **Agents**: moca, Pi, and Claude Code are pinned (`MOCA_VERSION`, `PI_VERSION`, `CLAUDE_VERSION`); OpenCode installs its latest npm version — pin it the same way (`"kwargs": {"version": "<v>"}` in `scripts/render_config.py`; all agents accept `--ak version=…`; values must be valid for that tool's package manager).
+- **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` records moca's step budget. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
 - The rendered effective config is saved to `results/effective-<profile>.json` and copied into each job directory, so every run records exactly what ran.
 
 ## Extending
@@ -150,15 +159,16 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | Harbor behaving oddly after an upgrade | Keep the pin: bump `HARBOR_VERSION` in `.env`, then `uv tool uninstall harbor && make setup`. |
 | Job failed halfway / rate limits | Re-run; Harbor resumes what's cached. Add `--max-retries 1` for transient API errors. |
 
-## Verified status (2026-10-10 → 2026-10-11, this host)
+## Verified status (2026-10-10 → 2026-10-16, this host)
 
-- Harbor 0.24.0 installed via uv; Docker 29.9.0; the moca adapter imports cleanly against Harbor's own environment.
+- Harbor 0.24.0 installed via uv; Docker 29.9.1; both custom adapters (`agents/moca.py`, `agents/opencode_v2.py`) import cleanly against Harbor's own environment.
 - `--dry-run` passes both profiles: smoke = 4 trials; subset = 80 trials (20 tasks × 4 agents).
-- Live credential probes (local binaries, scratch state): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ (2026-10-11 — all four exercised).
+- Live credential probes (local binaries, scratch state): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ (re-run 2026-10-16 on the new pins — all four exercised).
 - **Hello-world smoke, in-container, end to end** (see `results/jobs/cab-smoke-*`): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ — all reward 1.0.
   - moca: 32 s; 7,239 in / 59 out tokens; $0.0011 — usage backfilled into the trial result by the adapter (`agent_result` in the trial's `result.json`).
-  - OpenCode / Pi / Claude Code: reward 1.0 as well.
+  - OpenCode / Pi / Claude Code: reward 1.0 as well. Re-verified 2026-10-16 with moca v0.5.1-beta, OpenCode v2.0.30 (`@opencode/cli`), Pi 1.3.0, Claude Code 2.1.301 — 4/4 again, versions and metrics confirmed in `result.json`.
 - **First subset run (2026-10-11)** — 12 curated TB2 tasks × moca/Claude Code/Pi (36 trials, ~1h31m, $0.62 zen + $0 cash): solved 10/12, 11/12, 9/12 — report and full analysis: `docs/bench-2026-10-11-moca-claude-code-pi.md`.
+- **Second subset run (2026-10-16)** — first 4-agent run, same 12 tasks, latest pins, moca `maxSteps=100` (48 trials, 2h03m, $1.13 zen + $0 cash): solved pi 11/12, opencode 10/12, claude-code 10/12, moca 6/12 — report: `docs/bench-2026-10-16-moca-claude-code-pi-opencode.md`.
 
 ## References
 

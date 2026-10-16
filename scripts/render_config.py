@@ -46,16 +46,30 @@ def agents(_profile: str) -> list[dict]:
             {
                 "import_path": "agents.moca:Moca",
                 "model_name": zen,
-                "kwargs": {"version": env("MOCA_VERSION", "v0.3.0-beta")},
+                "kwargs": {
+                    "version": env("MOCA_VERSION", "v0.5.1-beta"),
+                    "max_steps": env_int("MOCA_MAX_STEPS", 100),
+                },
             },
         ),
-        ("opencode", {"name": "opencode", "model_name": zen}),
+        (
+            "opencode",
+            {
+                # OpenCode v2 renamed the npm package (opencode-ai →
+                # @opencode/cli) and moved --model onto `run` — Harbor 0.24.0's
+                # built-in opencode agent only drives v1. The subclass fixes
+                # install + the run command and inherits everything else.
+                "import_path": "agents.opencode_v2:OpenCodeV2",
+                "model_name": zen,
+                "kwargs": {"version": env("OPENCODE_VERSION", "2.0.30")},
+            },
+        ),
         (
             "pi",
             {
                 "name": "pi",
                 "model_name": zen,
-                "kwargs": {"version": env("PI_VERSION", "1.1.0")},
+                "kwargs": {"version": env("PI_VERSION", "1.3.0")},
             },
         ),
         (
@@ -63,7 +77,7 @@ def agents(_profile: str) -> list[dict]:
             {
                 "name": "claude-code",
                 "model_name": claude,
-                "kwargs": {"version": env("CLAUDE_VERSION", "2.1.296")},
+                "kwargs": {"version": env("CLAUDE_VERSION", "2.1.301")},
             },
         ),
     ]

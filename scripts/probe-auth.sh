@@ -65,7 +65,7 @@ if [ -x "$MOCA_BIN" ]; then
     XDG_CONFIG_HOME="$WORK/moca/cfg" \
     XDG_DATA_HOME="$WORK/moca/data" \
     XDG_STATE_HOME="$WORK/moca/state" \
-    "$MOCA_BIN" --config "$WORK/moca/cfg/config.jsonc" --yolo -p "$PROMPT"
+    "$MOCA_BIN" --config "$WORK/moca/cfg/config.jsonc" --mode yolo -p "$PROMPT"
 else
   echo "SKIP: moca (no binary at $MOCA_BIN — set MOCA_BIN)"
   skip=$((skip + 1))
@@ -77,7 +77,7 @@ if [ -x "$OPENCODE_BIN" ]; then
   probe opencode -- env \
     XDG_DATA_HOME="$WORK/opencode/data" \
     XDG_CONFIG_HOME="$WORK/opencode/cfg" \
-    "$OPENCODE_BIN" run --format=json --auto --model "$ZEN_MODEL" "$PROMPT"
+    "$OPENCODE_BIN" run --standalone --format=json --auto --model "$ZEN_MODEL" "$PROMPT"
 else
   echo "SKIP: opencode (no binary at $OPENCODE_BIN — set OPENCODE_BIN)"
   skip=$((skip + 1))

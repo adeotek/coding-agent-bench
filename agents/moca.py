@@ -8,11 +8,14 @@ This integration (``BaseInstalledAgent``):
 
 * installs a pinned release package (``.tar.gz``, verified against the
   release's ``checksums.txt``),
-* writes a minimal ``~/.config/moca/config.jsonc`` naming the model and
+* writes a minimal ``~/.config/moca/config.jsonc`` naming the model,
   referencing the API key by environment-variable indirection
-  (``env:OPENCODE_GO_KEY``) — the key itself is never written to disk,
-* runs ``moca --yolo -p <instruction>``, teeing output into the trial logs and
-  copying the session transcript alongside them, and
+  (``env:OPENCODE_GO_KEY``) — the key itself is never written to disk — and
+  setting ``context.maxSteps`` (the tool-batch budget before moca takes its
+  tool-less wrap-up turn and exits 3 as "incomplete"),
+* runs ``moca --mode yolo -p <instruction>`` (the v0.4.0 permission-mode
+  overhaul replaced the ``--yolo`` flag), teeing output into the trial logs
+  and copying the session transcript alongside them, and
 * backfills token/cost usage from the session JSONL
   (``populate_context_post_run``).
 
@@ -34,7 +37,8 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 _GITHUB_REPO = "adeotek/moca"
-_DEFAULT_VERSION = "v0.3.0-beta"
+_DEFAULT_VERSION = "v0.5.1-beta"
+_DEFAULT_MAX_STEPS = 100
 _OUTPUT_FILENAME = "moca.txt"
 _SESSION_FILENAME = "moca-session.jsonl"
 # Name of the agent-phase env var holding the provider API key; the generated
@@ -45,9 +49,20 @@ _API_KEY_ENV = "OPENCODE_GO_KEY"
 class MocaOptions(InstalledAgentOptions):
     """``--ak`` options accepted by the moca integration."""
 
-    yolo: bool = Field(
-        default=True,
-        description="Run moca with --yolo (all permission checks off).",
+    mode: str = Field(
+        default="yolo",
+        description=(
+            "Permission mode for the run: default | auto | yolo | plan "
+            "(empty string omits the flag)."
+        ),
+    )
+    max_steps: int = Field(
+        default=_DEFAULT_MAX_STEPS,
+        description=(
+            "context.maxSteps written into the generated config — the "
+            "tool-batch budget before moca's tool-less wrap-up turn and "
+            "exit 3. moca's own default is 40."
+        ),
     )
 
 
@@ -107,10 +122,12 @@ class Moca(BaseInstalledAgent):
             )
         provider = self.model_name.split("/", 1)[0]
 
-        # Minimal config; the key is referenced, never embedded.
+        # Minimal config; the key is referenced, never embedded. maxSteps
+        # bounds the run's tool batches (moca exits 3 when it runs out).
         config = {
             "model": self.model_name,
             "providers": {provider: {"apiKey": f"env:{_API_KEY_ENV}"}},
+            "context": {"maxSteps": self.options.max_steps},
         }
         env = dict(self.model_connection.env)
         await self.exec_as_agent(
@@ -125,7 +142,9 @@ class Moca(BaseInstalledAgent):
 
         log_path = (self.environment_logs_dir / _OUTPUT_FILENAME).as_posix()
         session_copy = (self.environment_logs_dir / _SESSION_FILENAME).as_posix()
-        flags = "--yolo " if self.options.yolo else ""
+        flags = (
+            f"--mode {shlex.quote(self.options.mode)} " if self.options.mode else ""
+        )
         await self.exec_as_agent(
             environment,
             # Wrap moca in a subshell so its exit code can be captured across
