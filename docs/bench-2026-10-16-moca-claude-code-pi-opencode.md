@@ -12,6 +12,8 @@
 | **claude-code** 2.1.301 | claude-sonnet-5 | **10/12** | 83% (55–95%) | $5.68 API-equivalent (**$0 cash**, subscription) | $0.568 equiv |
 | **moca** v0.5.1-beta | glm-5.3-flash | **6/12** | 50% (25–75%) | $0.31 | $0.051 |
 
+> **Update (2026-10-17):** moca was re-run at **v0.6.0** (the TB2 hardening release — adeotek/moca#23) — **7/12** on the same subset and **6/8** on the diagnostic set that scored 3/8 for both previous versions. The table above keeps the v0.5.1-beta numbers of the original comparison; results and mechanisms are in the [follow-up section](#follow-up--moca-v060-re-runs-2026-10-17).
+
 - **Pi takes the field**, and OpenCode's v2 debut lands mid-pack — same 10/12 as Claude Code, at the lowest $/solved of any agent in this run.
 - **The mandated moca follow-up did not pay off.** Raising `context.maxSteps` 40 → 100 (verified in-session: the mailman run used exactly 100 tool batches) removed the step budget as the binding constraint on only one of six failures — and even there it didn't help. The others: two false-success claims (cobol, db-wal), one wrong "fix" to working scaffolding (log-summary), one partial fix (custom-memory), plus the shared filter-js failure. moca is now last on accuracy and the most expensive zen agent per solved task ($0.051 vs OpenCode's $0.030).
 - moca **regressed on 4 tasks it passed on 2026-10-11** (identical tasks, identical model; moca went v0.3.0-beta → v0.5.1-beta). v0.5.1-beta is ~4 hours old as of this run — measured as shipped.
@@ -118,3 +120,62 @@ Nobody (0/3 previously, 0/4 now) produces a sanitizer that blocks XSS while byte
 - Retry accounting: 2 retries consumed (`mailman`/moca on a transient `NetworkConnectionError`; `extract-elf`/opencode on the exit-1 quirk). `AgentTimeoutError` (pi/cobol) is excluded from retries by Harbor policy and stands as scored.
 - Reproduce: `AGENTS=moca,opencode,claude-code,pi TASK_NAMES=<12 listed above> MOCA_MAX_STEPS=100 ./scripts/bench.sh run subset --max-retries 1 -y`
 - Artifacts: `results/jobs/cab-subset-20261016-004433/` (per-trial agent logs, trajectories, verifier output, `result.json`), `results/subset-run-summary.json`, `results/run-subset-20261016-004433.log`; browse with `make view`.
+
+---
+
+## Follow-up — moca v0.6.0 re-runs (2026-10-17)
+
+**Why:** v0.6.0 (released 2026-10-17) ships the TB2 hardening pass (adeotek/moca#23) that came out of this report's failure analysis and a live endpoint review: (1) **effort maps re-verified against the thinking-only zen serving variants** — `glm-5.3-flash` now clamps moca's default `medium` to `low` on the wire (the old maps sent `medium`/`none`, which the updated endpoints reject with `HTTP 400 [1210] … cannot be disabled; please use low, high, or max` — a mid-run killer the original run partly misattributed to moca behavior); (2) three **working-style rules** (time-boxed orientation, falsifiable verification, no fabricated data) plus "copy stateful files before probing"; (3) a **progress nudge** that fires once after 12 tool batches without creating or editing a file. This follow-up re-runs the affected tasks, then the whole subset, moca only.
+
+### Diagnostic — 9 tasks (job `cab-subset-20261017-002541`, 38 min, $0.19)
+
+The original 8-task diagnostic set plus `filter-js-from-html` (the one moca failure the earlier diagnostic didn't cover); same protocol otherwise, `maxSteps = 100`.
+
+| task | diag 10-16 (v0.3.0-beta) | main (v0.5.1-beta) | **v0.6.0** | note |
+|---|---|---|---|---|
+| cobol-modernization | ❌ | ❌ | **✅** (299s, $0.041) | progress nudge fired at 12 batches; own fixed-record harness; claim matches verifier |
+| db-wal-recovery | ❌ (429) | ❌ (fabricated) | **✅** (45s, $0.002) | `xxd` first → recognized XOR-0x42 WAL → decrypted → read; no fabrication |
+| log-summary-date-ranges | ✅ | ❌ | ❌ (64s, $0.005) | new narrow bug: `month_to_date` counted as "all files" (= total, 14160 vs expected 4682); the agent noticed the `total == month_to_date` contradiction and rationalized it |
+| custom-memory-heap-crash | ✅ | ❌ | **✅** (301s, $0.012) | release build + Valgrind verified before "done" |
+| mailman | ❌ | ❌ | ❌ (1174s, $0.092) | **executes now** (92 calls vs a recon-only wrap-up); verifier's confirmation handshake fails — state left by the agent's own eval runs (see below) |
+| fix-git | ✅ | ✅ | ✅ (45s, $0.003) | |
+| kv-store-grpc | ❌ (429) | ✅ | ✅ (48s, $0.004) | |
+| nginx-request-logging | ❌ | ✅ | ✅ (50s, $0.005) | `limit_req_zone` placed in `/etc/nginx/nginx.conf` |
+| filter-js-from-html | — | ❌ | ❌ (347s, $0.022) | still 0 across every run and agent |
+
+**On the original 8 tasks: 3/8 → 6/8.** Three of the four "regression" tasks (cobol, db-wal, custom-memory) flipped to passes; log-summary stayed red with a different, narrower mechanism. No `[1210]` endpoint rejections occurred in any v0.6.0 trial — sessions record `effort: low` on the wire, and the endpoint accepts it.
+
+### Subset — 12 tasks, moca only (job `cab-subset-20261017-011858`, 35 min, $0.31)
+
+Same 12-task fixed subset, same checksums, same protocol as the original comparison; moca only. Result: **7/12** (v0.5.1-beta: 6/12), $0.044 per solved task (v0.5.1: $0.051; OpenCode's $0.030 still leads the field).
+
+| task | v0.5.1 | **v0.6.0** | cost | note |
+|---|---|---|---|---|
+| build-cython-ext | ✅ | ❌ (254s) | $0.027 | 10/11 subtests pass; one runtime path still calls numpy's removed `np.int` alias → `AttributeError` |
+| cobol-modernization | ❌ | **✅** (316s) | $0.017 | |
+| custom-memory-heap-crash | ❌ | **✅** (1002s) ⚠️ | $0.115 | retried once — both attempts exited non-zero (moca's incomplete/wrap-up exit); the retry's completed work passed the verifier (reward 1.0 with the exception recorded alongside, same convention as the `✅ ⚠️` cells above) |
+| db-wal-recovery | ❌ | ❌ (101s) | $0.007 | `xxd … && sqlite3 …` in **one command** — the sqlite3 open deleted the still-encrypted WAL before the decrypt step ran; then hunted the filesystem for a copy (none), **refused to fabricate** and reported the loss honestly (v0.5.1 fabricated and claimed success — the rule held; the copy-first ordering didn't) |
+| extract-elf | ✅ | ✅ (77s) | $0.005 | |
+| filter-js-from-html | ❌ | ❌ (399s) | $0.023 | |
+| fix-git | ✅ | ✅ (38s) | $0.003 | |
+| kv-store-grpc | ✅ | ✅ (36s) | $0.003 | |
+| log-summary-date-ranges | ❌ | **✅** (71s) | $0.003 | opposite outcome vs the diagnostic hours earlier — flaky cell |
+| mailman | ❌ | ❌ (681s) ⚠️ | $0.096 | both attempts exited incomplete; attempt 2 failed earlier (the test user's mailbox never existed) |
+| multi-source-data-merger | ✅ | ✅ (57s) | $0.005 | |
+| nginx-request-logging | ✅ | ❌ (53s) | $0.003 | config functionally correct (`nginx -t` clean, 5/6 subtests pass) — this run put `limit_req_zone` in the site conf; the verifier's re-used `config_content` checks it inside `nginx.conf` (the diagnostic run placed it there and passed) |
+
+### What the two runs show together
+
+- **The discipline pass works but is not yet deterministic.** Direct effects: no fabricated data anywhere (the db-wal failure is now an *honest* one); the progress nudge fired in exactly the two recon-heavy runs (cobol, mailman) and cobol converted to a verified pass; the endpoint-compat fix ended the mid-run 400s.
+- **Variance dominates single-cell deltas.** Across the diagnostic + subset runs, **db-wal, log-summary and nginx each flipped in opposite directions** on the same version, model, and task (W→L, L→W, W→L). The durable v0.6.0 misses are build-cython-ext (one uncovered code path), mailman and filter-js. Net on the subset: +3 recovered, −2 flipped; ±1 cell is noise at n=12.
+- **mailman is still the wall — but the failure mode changed.** v0.6.0 *works the problem* (19.6 / 11.4 min, ~2.4M tokens, real MTA plumbing; its own flows pass) — the verifier's fixed-user (`alicegray`) confirmation handshake then finds no reply-able `reading-group-confirm*` message, with the mailbox holding stale traffic from the agent's own earlier broken-state tests. Final-state hygiene, not plumbing capability.
+- **Remaining prompt gap:** "copy stateful files before probing" needs to be an *ordering* rule — the first action on a stateful file must be a byte copy, and a benign read must never share a command with a stateful open. db-wal's own post-mortem says exactly this; the model diagnosed it perfectly and too late.
+- Verifier quirk worth knowing: nginx's `limit_req_zone` must land in `/etc/nginx/nginx.conf` for `test_nginx_config_settings` to pass.
+
+### Method notes
+
+- Both runs moca-only; identical task sets/checksums, concurrency 2, `MOCA_MAX_STEPS=100`, `--max-retries 1` (custom-memory and mailman consumed their retry; both retried attempts are final). Neither run touched the other agents.
+- Reproduce (TASK_NAMES is required — without it the `subset` profile falls back to an arbitrary first-N task selection):
+  - Diagnostic: `AGENTS=moca MOCA_VERSION=v0.6.0 MOCA_MAX_STEPS=100 TASK_NAMES=cobol-modernization,db-wal-recovery,log-summary-date-ranges,custom-memory-heap-crash,mailman,fix-git,kv-store-grpc,nginx-request-logging,filter-js-from-html ./scripts/bench.sh run subset --max-retries 1 -y`
+  - Subset: `AGENTS=moca MOCA_VERSION=v0.6.0 MOCA_MAX_STEPS=100 TASK_NAMES=fix-git,cobol-modernization,kv-store-grpc,build-cython-ext,custom-memory-heap-crash,db-wal-recovery,extract-elf,log-summary-date-ranges,multi-source-data-merger,nginx-request-logging,mailman,filter-js-from-html ./scripts/bench.sh run subset --max-retries 1 -y`
+- Artifacts: `results/jobs/cab-subset-20261017-002541/`, `results/jobs/cab-subset-20261017-011858/` (per-trial agent logs incl. `moca-session.jsonl`, verifier output, `result.json`); run logs `results/run-diagnostic-v060-*.log`, `results/run-subset-moca-v060-*.log`; total v0.6.0 spend across both runs: **$0.49**.
