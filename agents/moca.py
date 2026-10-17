@@ -14,7 +14,8 @@ This integration (``BaseInstalledAgent``):
   setting ``context.maxSteps`` (the tool-batch budget before moca takes its
   tool-less wrap-up turn and exits 3 as "incomplete"),
 * runs ``moca --mode yolo -p <instruction>`` (the v0.4.0 permission-mode
-  overhaul replaced the ``--yolo`` flag), teeing output into the trial logs
+  overhaul replaced the ``--yolo`` flag; older pinned versions are driven with
+  ``--yolo`` — see ``permission_flags``), teeing output into the trial logs
   and copying the session transcript alongside them, and
 * backfills token/cost usage from the session JSONL
   (``populate_context_post_run``).
@@ -37,13 +38,35 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 _GITHUB_REPO = "adeotek/moca"
-_DEFAULT_VERSION = "v0.5.1-beta"
+_DEFAULT_VERSION = "v0.6.0"
 _DEFAULT_MAX_STEPS = 100
+# The v0.4.0 permission-mode overhaul replaced the legacy --yolo flag with
+# `--mode yolo`; version bisects must speak both dialects.
+_MODE_FLAG_SINCE = (0, 4)
 _OUTPUT_FILENAME = "moca.txt"
 _SESSION_FILENAME = "moca-session.jsonl"
 # Name of the agent-phase env var holding the provider API key; the generated
 # config references it through moca's `env:` indirection.
 _API_KEY_ENV = "OPENCODE_GO_KEY"
+
+
+def permission_flags(version: str | None, mode: str) -> str:
+    """Permission flags for a pinned moca version: ``--mode <m>`` on
+    v0.4.0+, the legacy ``--yolo`` on v0.3.x (its only permission flag)."""
+    if not mode:
+        return ""
+    raw = (version or _DEFAULT_VERSION).lstrip("v")
+    try:
+        major, minor = (int(part.split("-")[0]) for part in raw.split(".")[:2])
+    except (AttributeError, TypeError, ValueError):
+        major, minor = _MODE_FLAG_SINCE  # unparsable → assume current CLI
+    if (major, minor) >= _MODE_FLAG_SINCE:
+        return f"--mode {shlex.quote(mode)} "
+    if mode != "yolo":
+        raise ValueError(
+            f"moca {version}: only --yolo exists below v0.4.0 (asked for mode {mode!r})"
+        )
+    return "--yolo "
 
 
 class MocaOptions(InstalledAgentOptions):
@@ -142,9 +165,7 @@ class Moca(BaseInstalledAgent):
 
         log_path = (self.environment_logs_dir / _OUTPUT_FILENAME).as_posix()
         session_copy = (self.environment_logs_dir / _SESSION_FILENAME).as_posix()
-        flags = (
-            f"--mode {shlex.quote(self.options.mode)} " if self.options.mode else ""
-        )
+        flags = permission_flags(self._version, self.options.mode)
         await self.exec_as_agent(
             environment,
             # Wrap moca in a subshell so its exit code can be captured across

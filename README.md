@@ -114,7 +114,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.5.1-beta` | pinned moca release package |
+| `MOCA_VERSION` | `v0.6.0` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
 | `OPENCODE_VERSION` | `2.0.30` | pinned OpenCode release (npm `@opencode/cli`) |
 | `PI_VERSION` | `1.3.0` | pinned Pi release (npm) |
@@ -159,7 +159,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | Harbor behaving oddly after an upgrade | Keep the pin: bump `HARBOR_VERSION` in `.env`, then `uv tool uninstall harbor && make setup`. |
 | Job failed halfway / rate limits | Re-run; Harbor resumes what's cached. Add `--max-retries 1` for transient API errors. |
 
-## Verified status (2026-10-10 → 2026-10-16, this host)
+## Verified status (2026-10-10 → 2026-10-17, this host)
 
 - Harbor 0.24.0 installed via uv; Docker 29.9.1; both custom adapters (`agents/moca.py`, `agents/opencode_v2.py`) import cleanly against Harbor's own environment.
 - `--dry-run` passes both profiles: smoke = 4 trials; subset = 80 trials (20 tasks × 4 agents).
@@ -169,6 +169,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
   - OpenCode / Pi / Claude Code: reward 1.0 as well. Re-verified 2026-10-16 with moca v0.5.1-beta, OpenCode v2.0.30 (`@opencode/cli`), Pi 1.3.0, Claude Code 2.1.301 — 4/4 again, versions and metrics confirmed in `result.json`.
 - **First subset run (2026-10-11)** — 12 curated TB2 tasks × moca/Claude Code/Pi (36 trials, ~1h31m, $0.62 zen + $0 cash): solved 10/12, 11/12, 9/12 — report and full analysis: `docs/bench-2026-10-11-moca-claude-code-pi.md`.
 - **Second subset run (2026-10-16)** — first 4-agent run, same 12 tasks, latest pins, moca `maxSteps=100` (48 trials, 2h03m, $1.13 zen + $0 cash): solved pi 11/12, opencode 10/12, claude-code 10/12, moca 6/12 — report: `docs/bench-2026-10-16-moca-claude-code-pi-opencode.md`.
+- **moca v0.6.0 follow-up (2026-10-17)** — moca only, same 12-task subset + a 9-task diagnostic (73 min combined, $0.49): diagnostic 6/9 (6/8 on the original 8-task set, up from 3/8), subset **7/12** (up from 6/12; $0.044/solved) — follow-up section of the 2026-10-16 report. Every request ran at `effort=low` (the flash serving variant accepts only `low|high|max`; v0.6.0 clamps), and the trial sessions confirm the adapter's exit-3/metrics contract on the new version.
 
 ## References
 
