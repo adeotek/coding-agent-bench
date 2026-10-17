@@ -114,7 +114,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.6.0` | pinned moca release package |
+| `MOCA_VERSION` | `v0.6.1` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
 | `OPENCODE_VERSION` | `2.0.30` | pinned OpenCode release (npm `@opencode/cli`) |
 | `PI_VERSION` | `1.3.0` | pinned Pi release (npm) |
