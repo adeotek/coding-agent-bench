@@ -90,7 +90,7 @@ The 2026-10-11 report's hypothesis was that moca's failures were its 40-step def
 - **custom-memory-heap-crash**: partial fix — debug build clean, Valgrind clean, but the **release build segfaults** after printing its output (verifier: returncode −11). The release runtime path was never re-verified before declaring done.
 - **filter-js-from-html**: same byte-preservation failure family as all three other agents.
 
-Cross-run: cobol, db-wal, log-summary and custom-memory all **passed** on 2026-10-11 at v0.3.0-beta (same tasks, same model, 1 attempt). The regression correlates with the moca version jump (v0.3.0-beta → v0.5.1-beta, incl. the v0.4 permissions overhaul and v0.5 MCP/project work), not with the step budget. v0.5.1-beta is a day-old beta; these numbers measure the shipped state, and a bisect across moca releases would isolate the change if it matters.
+Cross-run: cobol, db-wal, log-summary and mailman all **passed** on 2026-10-11 at v0.3.0-beta (same tasks, same model, 1 attempt; custom-memory failed in both rounds). The regression correlates with the moca version jump (v0.3.0-beta → v0.5.1-beta, incl. the v0.4 permissions overhaul and v0.5 MCP/project work), not with the step budget. v0.5.1-beta is a day-old beta; these numbers measure the shipped state, and a bisect across moca releases would isolate the change if it matters.
 
 ### pi — 11/12, the field's best; one real timeout, but on a passing task
 
@@ -224,7 +224,7 @@ Third run in a row at 0, now audited against the task source (Harbor's cache, `f
 ### What the round shows
 
 - **The v0.6.1 rules + guard converted 3 of the 5 open cells** (build-cython-ext, db-wal-recovery, nginx-request-logging) with no regressions, at 59% of v0.6.0's spend and 62% of its tokens.
-- Scoreboard on this subset: v0.3.0 10/12 (2026-10-11) → v0.5.1 9/12 → v0.6.0 7/12 → **v0.6.1 10/12**.
+- Scoreboard on this subset: v0.3.0 10/12 (2026-10-11) → v0.5.1 6/12 → v0.6.0 7/12 → **v0.6.1 10/12** (corrected 2026-10-17 against the job data; see [Cross-version](#cross-version--every-moca-run-on-this-subset-2026-10-11--2026-10-17) for all five runs).
 - Both remaining cells have a named owner: mailman → the "stated behaviour beats a named setting" rule (next moca round); filter-js → task-side (above), with moca's no-action exit as the only moca-owned part.
 - Harness instruments shipped alongside the round (adeotek/moca#28, #29): an append-only request invariant with tests at every codec, token/cache attribution in the per-run metrics, a stratified-bootstrap A/B comparison (it reads the internal corpus's v0.5.2→v0.6.1 delta as *underpowered* at n=3 — hence the n=6 baseline below), and a trajectory replay that re-runs recorded sessions turn by turn with the tools executing for real.
 
@@ -233,3 +233,104 @@ Third run in a row at 0, now audited against the task source (Harbor's cache, `f
 - moca only, identical 12-task subset and checksums, concurrency 2, `MOCA_MAX_STEPS=100`, `--max-retries 1` (no retry consumed this round). v0.6.1 was preflighted exactly as the adapter consumes it before the run: release asset + `checksums.txt`, a live `--mode yolo` run, and the four rules asserted in the shipped binary's stored session prompt.
 - Reproduce: `AGENTS=moca MOCA_VERSION=v0.6.1 MOCA_MAX_STEPS=100 TASK_NAMES=<the 12-task list> ./scripts/bench.sh run subset --max-retries 1 -y` (TASK_NAMES is required, as above).
 - Artifacts: `results/jobs/cab-subset-20261017-140708/` (per-trial `agent/moca-session.jsonl`, verifier output, `result.json`); run log `bench-round3-v061.log`; spend **$0.18**.
+
+## Cross-version — every moca run on this subset (2026-10-11 → 2026-10-17)
+
+Five moca runs, one 12-task subset, one model (`opencode-go/glm-5.3-flash`), one protocol
+(`MOCA_MAX_STEPS=100`, 1 attempt, `--max-retries 1`, moca `--mode yolo`). Everything below is read
+from `results/jobs/` — the job ids are named so any figure can be re-derived without trusting prose.
+
+| moca | date | job | pass | spend | tokens | $/solved | tok/solved | slowest trial |
+|---|---|---|---|---|---|---|---|---|
+| v0.3.0-beta | 10-11 | `…20261011-134651` | **10/12** | $0.1886 | 2.59 M | $0.0189 | 258,557 | 8.2 min |
+| v0.5.1-beta | 10-16 | `…20261016-004433` | 6/12 | $0.3082 | 7.70 M | $0.0514 | 1,282,588 | 6.1 min |
+| v0.6.0 | 10-17 | `…20261017-011858` | 7/12 | $0.3059 | 6.78 M | $0.0437 | 969,278 | 16.7 min |
+| v0.6.1 | 10-17 | `…20261017-140708` | **10/12** | $0.1818 | 4.20 M | **$0.0182** | **419,698** | 16.6 min |
+| v0.6.2 | 10-17 | `…20261017-191809` | 8/12 | **$0.1634** | 2.99 M¹ | $0.0204 | 374,224¹ | 20.1 min |
+
+¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its session,
+so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
+
+| task | v0.3.0 | v0.5.1 | v0.6.0 | v0.6.1 | v0.6.2 |
+|---|---|---|---|---|---|
+| fix-git | ✅ | ✅ | ✅ | ✅ | ✅ |
+| kv-store-grpc | ✅ | ✅ | ✅ | ✅ | ✅ |
+| extract-elf | ✅ | ✅ | ✅ | ✅ | ✅ |
+| multi-source-data-merger | ✅ | ✅ | ✅ | ✅ | ✅ |
+| custom-memory-heap-crash | ❌ | ❌ | ✅ | ✅ | ✅ |
+| log-summary-date-ranges | ✅ | ❌ | ✅ | ✅ | ✅ |
+| build-cython-ext | ✅ | ✅ | ❌ | ✅ | ✅ |
+| db-wal-recovery | ✅ | ❌ | ❌ | ✅ | ✅ |
+| cobol-modernization | ✅ | ❌ | ✅ | ✅ | ⏱ |
+| nginx-request-logging | ✅ | ✅ | ❌ | ✅ | ❌ |
+| mailman | ✅ | ❌ | ❌ | ❌ | ❌ |
+| filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ |
+
+✅ pass · ❌ fail · ⏱ timeout (agent or verifier)
+
+### What moved, release by release
+
+- **v0.3.0 → v0.5.1 (10/12 → 6/12): the endpoint-drift regression.** Lost cobol, db-wal and
+  log-summary, plus mailman, at **3× the tokens** (2.59 M → 7.70 M) and 2.8× the spend. This is the
+  round that motivated the whole hardening line.
+- **v0.5.1 → v0.6.0 (6/12 → 7/12): hardening paid for itself.** Gained cobol, custom-memory and
+  log-summary; lost build-cython and nginx. Tokens fell 12%, cost stayed flat.
+- **v0.6.0 → v0.6.1 (7/12 → 10/12): the four rules + the stateful-file guard.** Converted
+  build-cython, db-wal and nginx with no regressions at 62% of v0.6.0's tokens — still the best
+  efficiency point of the five runs ($0.0182/solved).
+- **v0.6.1 → v0.6.2 (10/12 → 8/12).** Lost cobol (agent timeout) and nginx (regex), kept mailman and
+  filter-js failing, and filter-js degraded from a fast fail to a verifier timeout. Every v0.6.2
+  change is history-correctness (plan envelope, elision, thinking binding), which *cannot* move
+  TB2 pass rates; the two behavioural changes were the working-style rule and the action nudge, and
+  neither converted a cell — the nudge never fired (no run answered without acting).
+
+### Round 4 forensics — all four fails are diagnosable
+
+- **cobol-modernization ⏱ — agent timeout, not a wrong answer.** 77 productive steps (built the
+  Python port, probed the COBOL numeric edge cases, fetched GnuCOBOL's `move.c` to explain a
+  `cob_move` anomaly) and then the 900 s cap. v0.6.1 passed it in 4.3 min / 173 K tokens; round 4
+  spent 3.5× the clock. One trial cannot attribute this, but *"assert the behaviour end to end"* is
+  exactly the kind of rule that lengthens a task where a faithful port needs the numeric semantics
+  nailed. Watch it: a recurrence means the rule wants a time-box sentence.
+- **filter-js-from-html ⏱ — verifier timeout, and the lever did not fire.** v0.6.1's run answered in
+  one text-only turn (3.1 K tokens); round 4's worked for 254 K tokens and then the *task's own test
+  suite* hung for 900 s (no verdict at all). The session contains **no nudge of any kind**, so the
+  behaviour change was not the action nudge. Still task-side — it can now also hang the verifier.
+- **nginx-request-logging ❌ — a regex, not a behaviour.** The agent's own verification was green
+  (`nginx -t`, 200/404, the required log fields with a double-quoted user agent). The hidden test
+  asserts `re.search(r'\s(\d{3})\s', line)` — a status **surrounded by whitespace** — and the agent
+  wrote `status=200`: semantically right, regex-invisible. v0.6.1 happened to emit a
+  whitespace-delimited status and passed. Task-side fragility; a coin flip on formatting.
+- **mailman ❌ — the lever worked and the diagnosis was wrong.** Round 4 is the first run that *did*
+  what the v0.6.1 analysis prescribed: `subscription_policy` **and** `unsubscription_policy` set to
+  `open` (18 mentions each in the session), both flows exercised by hand, the shipped `/app/eval.py`
+  green. The hidden test then failed on its **first** assertion: it sends a join request and asserts
+  the user is **not yet a member**, then confirms via the reply (and asserts the same pending state
+  on leave). Setting the policies to `open` makes joins immediate — the test *requires* the
+  confirmation flow, not its suppression. So the confirmation mail was never the obstacle; its
+  delivery is. **Corrected target for the next round: keep both policies at confirm, and make the
+  confirmation mails actually reach `/var/mail/<user>` with replies processed** (delivery path / MTA
+  config), then assert the whole flow. The general lesson: the "behaviour outranks a name" rule
+  faithfully implements whatever diagnosis it is handed — including a wrong one.
+
+### Two corrections to the sections above
+
+- The Follow-up 2 scoreboard says `v0.5.1 9/12`; the job (`…20261016-004433`) and this report's own
+  v0.5.1 table both say **6/12**. The 6 is right.
+- The v0.5.1 regression paragraph lists `custom-memory` among the four tasks that passed on 10-11.
+  The job shows custom-memory **failed** at v0.3.0 (0.0); the fourth regression is **mailman**, which
+  did pass at v0.3.0 (427 K tokens).
+
+### Where that leaves the comparison
+
+- **v0.6.1 remains the best full-subset moca** (10/12, $0.0182/solved). v0.6.2 scores 8/12 with two
+  of its four fails being timeouts and two task-side verifier fragilities; its own changes were
+  history-correctness, which this benchmark cannot reward.
+- **Efficiency trend:** tok/solved 258 K → 1.28 M → 969 K → 420 K → 374 K¹. The v0.6.x line cut
+  per-solved tokens ~3.4× from the v0.5.1 trough while recovering pass rate — that part of the story
+  holds, and v0.6.2 is the cheapest total spend of the five.
+- **Open cells and owners:** mailman → delivery-path fix (corrected diagnosis above), not policy;
+  filter-js → task-side (0 passes in 11 attempts across 4 agents / 2 models, and now a verifier
+  hang); nginx → task-side regex; cobol → watch for a timeout recurrence under the new rule.
+- **Next run:** after the mailman delivery fix and a time-box tweak, this same subset at v0.6.3 —
+  the cells to watch are exactly round 4's four.
