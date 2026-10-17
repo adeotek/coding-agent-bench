@@ -246,25 +246,26 @@ from `results/jobs/` — the job ids are named so any figure can be re-derived w
 | v0.5.1-beta | 10-16 | `…20261016-004433` | 6/12 | $0.3082 | 7.70 M | $0.0514 | 1,282,588 | 6.1 min |
 | v0.6.0 | 10-17 | `…20261017-011858` | 7/12 | $0.3059 | 6.78 M | $0.0437 | 969,278 | 16.7 min |
 | v0.6.1 | 10-17 | `…20261017-140708` | **10/12** | $0.1818 | 4.20 M | **$0.0182** | **419,698** | 16.6 min |
-| v0.6.2 | 10-17 | `…20261017-191809` | 8/12 | **$0.1634** | 2.99 M¹ | $0.0204 | 374,224¹ | 20.1 min |
+| v0.6.2 | 10-17 | `…20261017-191809` | 8/12 | $0.1634 | 2.99 M¹ | $0.0204 | 374,224¹ | 20.1 min |
+| v0.6.3 | 10-17 | `…20261017-230714` | 7/12 | $0.2830 | 6.02 M | $0.0404 | 859,796 | 12.7 min |
 
 ¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its session,
 so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
 
-| task | v0.3.0 | v0.5.1 | v0.6.0 | v0.6.1 | v0.6.2 |
-|---|---|---|---|---|---|
-| fix-git | ✅ | ✅ | ✅ | ✅ | ✅ |
-| kv-store-grpc | ✅ | ✅ | ✅ | ✅ | ✅ |
-| extract-elf | ✅ | ✅ | ✅ | ✅ | ✅ |
-| multi-source-data-merger | ✅ | ✅ | ✅ | ✅ | ✅ |
-| custom-memory-heap-crash | ❌ | ❌ | ✅ | ✅ | ✅ |
-| log-summary-date-ranges | ✅ | ❌ | ✅ | ✅ | ✅ |
-| build-cython-ext | ✅ | ✅ | ❌ | ✅ | ✅ |
-| db-wal-recovery | ✅ | ❌ | ❌ | ✅ | ✅ |
-| cobol-modernization | ✅ | ❌ | ✅ | ✅ | ⏱ |
-| nginx-request-logging | ✅ | ✅ | ❌ | ✅ | ❌ |
-| mailman | ✅ | ❌ | ❌ | ❌ | ❌ |
-| filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ |
+| task | v0.3.0 | v0.5.1 | v0.6.0 | v0.6.1 | v0.6.2 | v0.6.3 |
+|---|---|---|---|---|---|---|
+| fix-git | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| kv-store-grpc | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| extract-elf | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| multi-source-data-merger | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| custom-memory-heap-crash | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| log-summary-date-ranges | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| build-cython-ext | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| db-wal-recovery | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| cobol-modernization | ✅ | ❌ | ✅ | ✅ | ⏱ | ❌ |
+| nginx-request-logging | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
+| mailman | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ | ❌ |
 
 ✅ pass · ❌ fail · ⏱ timeout (agent or verifier)
 
@@ -283,6 +284,14 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
   change is history-correctness (plan envelope, elision, thinking binding), which *cannot* move
   TB2 pass rates; the two behavioural changes were the working-style rule and the action nudge, and
   neither converted a cell — the nudge never fired (no run answered without acting).
+- **v0.6.2 → v0.6.3 (8/12 → 7/12).** Two new rules written against round 4's diagnosed cells
+  (pending-state + wall-clock budget): mailman still fails and still sets `open` (**28 mentions**,
+  exit 3 at the 100-step budget, 2.2 M tokens); cobol no longer times out (9.9 min) but the
+  verifier disagreed with a port the agent believed byte-identical; and two cells that had never
+  failed in this suite failed on plain model errors (fix-git resolved the merge by *dropping* one
+  side's content; custom-memory fixed the debug build but not the release path). Net of the
+  fix-git/custom-memory losses, nginx came back (the regex coin flip landed the right way) and the
+  four v0.6.1-era cells (build-cython, db-wal, log-summary, extract-elf) held.
 
 ### Round 4 forensics — all four fails are diagnosable
 
@@ -313,6 +322,23 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
   config), then assert the whole flow. The general lesson: the "behaviour outranks a name" rule
   faithfully implements whatever diagnosis it is handed — including a wrong one.
 
+### Round 5 forensics (v0.6.3) — no timeouts, four real misses
+
+- **mailman ❌ — the pending-state rule did not shift the run.** It set `open` again (28 mentions),
+  and this time it also ran out of step budget (`NonZeroAgentExitCodeError`, 2.2 M tokens /
+  12.7 min). The task text *asks* for `open`; a prompt rule that contradicts the task's own wording
+  loses to it. That is a documented limitation of this cell now, not a pending fix.
+- **fix-git ❌ — a plain model error, new in five rounds.** The merge conflict was resolved by
+  keeping the new bio paragraph and dropping the old one; the hidden test asserts the file's
+  content. 24 K tokens, 0.5 min — the run never suspected the resolution was lossy.
+- **custom-memory ❌ — the round-1 failure family returned.** Debug build clean, Valgrind clean,
+  release build segfaults; the release path was never exercised before declaring done.
+- **cobol ❌ — the budget rule worked, the answer was still wrong.** No timeout this round (9.9 min
+  vs round 4's cap hit), but the verifier disagreed with a port the agent reported as "all file
+  outputs still identical". 1.9 M tokens.
+- **filter-js ❌ — a verdict this time** (0.0 at 234 K tokens / 6.2 min) instead of round 4's
+  verifier hang. Still task-side.
+
 ### Two corrections to the sections above
 
 - The Follow-up 2 scoreboard says `v0.5.1 9/12`; the job (`…20261016-004433`) and this report's own
@@ -323,14 +349,20 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
 
 ### Where that leaves the comparison
 
-- **v0.6.1 remains the best full-subset moca** (10/12, $0.0182/solved). v0.6.2 scores 8/12 with two
-  of its four fails being timeouts and two task-side verifier fragilities; its own changes were
-  history-correctness, which this benchmark cannot reward.
-- **Efficiency trend:** tok/solved 258 K → 1.28 M → 969 K → 420 K → 374 K¹. The v0.6.x line cut
-  per-solved tokens ~3.4× from the v0.5.1 trough while recovering pass rate — that part of the story
-  holds, and v0.6.2 is the cheapest total spend of the five.
-- **Open cells and owners:** mailman → delivery-path fix (corrected diagnosis above), not policy;
-  filter-js → task-side (0 passes in 11 attempts across 4 agents / 2 models, and now a verifier
-  hang); nginx → task-side regex; cobol → watch for a timeout recurrence under the new rule.
-- **Next run:** after the mailman delivery fix and a time-box tweak, this same subset at v0.6.3 —
-  the cells to watch are exactly round 4's four.
+- **v0.6.1 remains the best full-subset moca** (10/12, $0.0182/solved). The three rule-shipping
+  rounds after it score 8, 7 and 7 — the rules moved individual cells, but **round-to-round noise
+  dominates**: each round is a single attempt per task, and two cells that had never failed in this
+  suite (fix-git, custom-memory) fell in round 5 on plain model errors. Any claim that one release
+  beats another on this suite needs multiple attempts per task; the honest read of the six rounds is
+  a 6–10/12 band with v0.6.1 at the top.
+- **Efficiency:** tok/solved 258 K → 1.28 M → 969 K → 420 K → 374 K → 860 K. Round 3 (v0.6.1)
+  remains the floor; v0.6.3's 6.0 M tokens came mostly from mailman (2.2 M, step-budget exit) and
+  cobol (1.9 M, deep verification) — the same two cells that dominate every round's spend.
+- **Open cells:** mailman is red in all three rule rounds and the task text's own wording asks for
+  the setting that breaks its checker — now a documented limitation rather than a fix-queue item.
+  fix-git and custom-memory are model variance, not regressions to chase. filter-js is task-side
+  (0 passes in 12 attempts across 4 agents / 2 models). nginx is a task-side regex coin flip — and
+  it flipped back to green in round 5.
+- **The single-attempt protocol is the real limitation.** To arbitrate releases with this suite, the
+  next step is multiple attempts on the contested cells (mailman, cobol, fix-git, custom-memory)
+  rather than another rule written against one trial.
