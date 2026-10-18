@@ -366,3 +366,38 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
 - **The single-attempt protocol is the real limitation.** To arbitrate releases with this suite, the
   next step is multiple attempts on the contested cells (mailman, cobol, fix-git, custom-memory)
   rather than another rule written against one trial.
+
+## Cell diagnostics — 3 attempts × 2 models (2026-10-18)
+
+Run because single-attempt rounds cannot separate a release from variance: the four contested cells,
+3 attempts each, two models, moca v0.6.3, `N_ATTEMPTS=3`. Jobs `…20261018-004739`
+(`opencode-go/glm-5.3-flash`, $0.575) and `…20261018-014310` (`opencode-go/deepseek-v4.1-flash`,
+$0.304).
+
+| cell | glm-5.3-flash | deepseek-v4.1-flash | total | note |
+|---|---|---|---|---|
+| fix-git | P P P | P P P | **6/6** | round 5's failure was noise |
+| custom-memory-heap-crash | P P F | P P P | **5/6** | the release-path miss is a ~1-in-6 event |
+| cobol-modernization | P F P | P P P | **5/6** | round 4's timeout and round 5's disagreement are tail events |
+| mailman | P F F | **P T P** | **3/6** | first passes in six rounds — the cell is ~50%, not lost |
+
+- **mailman is winnable, and the recipe is visible.** Both winning runs on both models did the
+  **delivery-path work** — Postfix `transport_maps`/`alias_maps`/`local_recipient_maps`, the
+  generated LMTP map, the mailman and postfix runners started by hand (no init in the container) —
+  and verified the confirmation landing in `/var/mail/<user>`; the losing runs set
+  `SubscriptionPolicy.open`, skipped the MTA entirely, and never delivered a confirmation. The task
+  text's "set `SubscriptionPolicy.open`" is the trap; the winners escape it by doing the delivery
+  work regardless. (Deepseek winners: 997/548/174 `postfix`/`lmtp`/`/var/mail` mentions; losers:
+  none.)
+- **Model skew:** deepseek-v4.1-flash was the steadier leg (3/3 on three cells, 2/3 mailman, one
+  agent timeout); glm's failures cluster on the two expensive cells. mailman is the token sink on
+  both legs (6.7 M glm / 9.8 M deepseek).
+- **Telemetry gap:** the three deepseek cobol trials passed but left no session copy
+  (`agent_result` null across the board) — their tokens/cost are a floor, and the adapter's
+  post-run session copy is the suspect worth a look.
+- **What follows from this:** v0.6.4 has exactly one defensible lever on this data — a rule that
+  makes the *delivery* explicit ("when a flow hands off to another service — mail, queue, daemon —
+  the handoff is part of the task: put the message where the recipient can read it and verify that
+  it arrives; a local send is not a delivery"). It is consistent with the task text, so unlike the
+  pending-state rule it does not fight the prompt. Everything else on this slice is variance, and
+  the subset protocol should carry `N_ATTEMPTS>1` on contested cells from now on.
