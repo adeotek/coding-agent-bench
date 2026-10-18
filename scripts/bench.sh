@@ -38,8 +38,13 @@ need_harbor() {
     die "harbor not found — run: ./scripts/bench.sh setup"
 }
 
-render() { # profile -> prints config path
-  "$PYTHON" scripts/render_config.py "$1"
+render() { # profile [out-path] -> prints config path
+  local profile="$1" out="${2:-}"
+  if [ -n "$out" ]; then
+    "$PYTHON" scripts/render_config.py "$profile" -o "$out"
+  else
+    "$PYTHON" scripts/render_config.py "$profile"
+  fi
 }
 
 # Agent-phase env for the provider-dependent agents. The values are expanded
@@ -130,8 +135,13 @@ cmd_run() { # profile [extra harbor args...]
   agent_env_args
   local profile="${1:-subset}"
   shift || true
-  local cfg
-  cfg="$(render "$profile")"
+  # Render to a per-run file: two concurrent runs sharing results/effective-<p>.json
+  # could otherwise pick up each other's config between render and exec (a silent
+  # model swap). The canonical name is refreshed for inspection, and the job
+  # directory keeps the authoritative copy of what actually ran.
+  local run_cfg="results/effective-$profile-$(date +%Y%m%d-%H%M%S)-$$.json" cfg
+  cfg="$(render "$profile" "$run_cfg")"
+  cp "$cfg" "results/effective-$profile.json"
   echo "== effective config: $cfg"
   PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}" \
     "$HARBOR" run --config "$cfg" "${AE_ARGS[@]}" "$@"

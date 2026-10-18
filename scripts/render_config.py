@@ -119,11 +119,19 @@ def build(profile: str) -> dict:
 
 
 def main() -> None:
-    profile = sys.argv[1] if len(sys.argv) > 1 else "subset"
+    argv = sys.argv[1:]
+    out_arg = None
+    if "-o" in argv:
+        i = argv.index("-o")
+        if i + 1 >= len(argv):
+            sys.exit("render_config: -o needs a path")
+        out_arg = argv[i + 1]
+        del argv[i : i + 2]
+    profile = argv[0] if argv else "subset"
     if profile not in ("smoke", "subset", "full"):
         sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full)")
     cfg = build(profile)
-    out = REPO / "results" / f"effective-{profile}.json"
+    out = Path(out_arg) if out_arg else REPO / "results" / f"effective-{profile}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(cfg, indent=2) + "\n")
     print(out)

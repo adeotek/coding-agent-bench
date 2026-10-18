@@ -27,6 +27,7 @@ Harbor process environment, the model connection forwards it automatically.
 from __future__ import annotations
 
 import json
+import logging
 import shlex
 
 from pydantic import Field
@@ -48,6 +49,8 @@ _SESSION_FILENAME = "moca-session.jsonl"
 # Name of the agent-phase env var holding the provider API key; the generated
 # config references it through moca's `env:` indirection.
 _API_KEY_ENV = "OPENCODE_GO_KEY"
+
+log = logging.getLogger(__name__)
 
 
 def permission_flags(version: str | None, mode: str) -> str:
@@ -86,6 +89,38 @@ class MocaOptions(InstalledAgentOptions):
             "tool-batch budget before moca's tool-less wrap-up turn and "
             "exit 3. moca's own default is 40."
         ),
+    )
+
+
+def run_command(instruction: str, flags: str, log_path: str, session_copy: str) -> str:
+    """The shell line Harbor executes for one moca run.
+
+    Two jobs beyond launching moca: capture the exit code across the tee pipe
+    portably (a subshell writes it to a temp file — no shell-dependent
+    PIPESTATUS), and keep a session transcript in the logs directory. The
+    transcript carries the token/cost accounting and moca writes it under
+    ``$HOME/.local/share/moca/sessions/``, but the copy at the end of this line
+    never runs when Harbor kills the agent phase (a 900 s timeout, a cancel),
+    so a background mirror refreshes the copy every few seconds while the run
+    is in flight. A mirror copy caught mid-append is still usable — the
+    metrics reader skips an unparseable line — and the final copy below
+    replaces it after a clean exit.
+    """
+    newest = 'sess="$(ls -t "$HOME/.local/share/moca/sessions/"*.jsonl 2>/dev/null | head -n1)"; '
+    return (
+        'export PATH="$HOME/.local/bin:$PATH"; '
+        "( while :; do " + newest + f'[ -n "$sess" ] && cp "$sess" {shlex.quote(session_copy)}; '
+        "sleep 5; done ) 2>/dev/null & "
+        "moca_mirror_pid=$!; "
+        # Wrap moca in a subshell so its exit code survives the tee pipe.
+        f'( moca --config "$HOME/.config/moca/config.jsonc" {flags}'
+        f" -p {shlex.quote(instruction)} 2>&1; echo $? >/tmp/moca.exit )"
+        f" | tee {shlex.quote(log_path)}; "
+        "code=$(cat /tmp/moca.exit); "
+        'kill "$moca_mirror_pid" 2>/dev/null; '
+        + newest
+        + f'[ -n "$sess" ] && cp "$sess" {shlex.quote(session_copy)}; '
+        "exit $code"
     )
 
 
@@ -168,19 +203,7 @@ class Moca(BaseInstalledAgent):
         flags = permission_flags(self._version, self.options.mode)
         await self.exec_as_agent(
             environment,
-            # Wrap moca in a subshell so its exit code can be captured across
-            # the tee pipe portably (no shell-dependent PIPESTATUS).
-            command=(
-                'export PATH="$HOME/.local/bin:$PATH"; '
-                f'( moca --config "$HOME/.config/moca/config.jsonc" {flags}'
-                f"-p {shlex.quote(instruction)} 2>&1; echo $? >/tmp/moca.exit )"
-                f" | tee {shlex.quote(log_path)}; "
-                "code=$(cat /tmp/moca.exit); "
-                'sess="$(ls -t "$HOME/.local/share/moca/sessions/"*.jsonl '
-                "2>/dev/null | head -n1 || true)\"; "
-                f'[ -n "$sess" ] && cp "$sess" {shlex.quote(session_copy)}; '
-                "exit $code"
-            ),
+            command=run_command(instruction, flags, log_path, session_copy),
             env=env,
         )
 
@@ -188,6 +211,12 @@ class Moca(BaseInstalledAgent):
         """Sum token usage and cost from the session JSONL synced with the logs."""
         path = self.logs_dir / _SESSION_FILENAME
         if not path.exists():
+            log.warning(
+                "no moca session transcript in the logs dir (%s): token and cost "
+                "metrics are unavailable for this trial — the agent phase was "
+                "most likely killed (timeout or cancel) before its final copy",
+                path,
+            )
             return
         input_tokens = output_tokens = cache_read = cache_write = 0
         cost = 0.0

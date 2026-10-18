@@ -58,6 +58,7 @@ cd ~/projects/coding-agent-bench
 make setup          # installs Harbor (pinned 0.24.0) and checks Docker
 cp .env.example .env  # then edit .env and fill in the credentials
 make doctor         # docker + harbor + moca adapter import + credential presence
+make test           # harness unit test: the moca run line + session mirror (no spend)
 ```
 
 Optional but recommended — one live request per agent (~cents) proving the exact credential flow:
@@ -139,7 +140,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
 - **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies).
 - **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` records moca's step budget. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
-- The rendered effective config is saved to `results/effective-<profile>.json` and copied into each job directory, so every run records exactly what ran.
+- The rendered effective config is saved to `results/effective-<profile>.json` (refreshed for inspection) and copied into each job directory, so every run records exactly what ran. A `run` renders to a per-run `results/effective-<profile>-<timestamp>-<pid>.json` and hands *that* path to Harbor, so two concurrent runs cannot pick up each other's config between render and exec (the canonical name is only a convenience copy).
 
 ## Extending
 

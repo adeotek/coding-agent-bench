@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup doctor probe dry-run smoke subset full render view net-view prune
+.PHONY: help setup doctor test probe dry-run smoke subset full render view net-view prune
 
 help: ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-10s %s\n", $$1, $$2}'
@@ -11,6 +11,9 @@ setup: ## install Harbor (pinned) + check docker
 
 doctor: ## check docker/harbor/adapter/credentials (ARGS=--probe for live probes)
 	./scripts/bench.sh doctor $(ARGS)
+
+test: ## harness unit test: the moca run line + session mirror (no spend, needs the harbor tool env)
+	PYTHONPATH="$(CURDIR)" "$$(uv tool dir)/harbor/bin/python" test/moca_run_command_test.py
 
 probe: ## live credential probes (one tiny request per agent)
 	./scripts/bench.sh probe
