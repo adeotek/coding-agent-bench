@@ -139,12 +139,17 @@ cmd_run() { # profile [extra harbor args...]
   # could otherwise pick up each other's config between render and exec (a silent
   # model swap). The canonical name is refreshed for inspection, and the job
   # directory keeps the authoritative copy of what actually ran.
-  local run_cfg="results/effective-$profile-$(date +%Y%m%d-%H%M%S)-$$.json" cfg
+  local run_id="$(date +%Y%m%d-%H%M%S)-$$"
+  local run_cfg="results/effective-$profile-$run_id.json" cfg
   cfg="$(render "$profile" "$run_cfg")"
   cp "$cfg" "results/effective-$profile.json"
   echo "== effective config: $cfg"
+  # A unique job name too: Harbor names the job directory by second
+  # (cab-<profile>-<YYYYmmdd-HHMMSS>), so two legs launched in the same second
+  # collide ("Job directory … already exists and cannot be resumed with a
+  # different config") and one dies instantly. The pid makes it unique.
   PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}" \
-    "$HARBOR" run --config "$cfg" "${AE_ARGS[@]}" "$@"
+    "$HARBOR" run --config "$cfg" --job-name "cab-$profile-$run_id" "${AE_ARGS[@]}" "$@"
 }
 
 cmd_view() { # [extra harbor view args...]

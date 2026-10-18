@@ -268,10 +268,7 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
 | mailman | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌¹ |
 | filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ | ❌ | ❌ |
 
-¹ Round 6's mailman failure is a step-budget truncation, not the failure mode of rounds 2–5: the run
-was 6.5 min in with 2.2 M tokens spent **doing the delivery-path work** (111 `postfix` / 73 `lmtp`
-mentions) when the 100-step cap killed it — while all six cell-run attempts at v0.6.4, which ran to
-completion (5.6–30 min), passed. See the cell comparison below.
+¹ Round 6's mailman failure was the **step cap**: the session shows 101 model requests (the cap fires when `step == maxSteps`; the extra one is the tool-less wrap-up) — it was still mid-delivery work (111 `postfix` / 73 `lmtp` mentions) when the budget ran out. The six cell-run attempts that finished used 40–98 requests, **two deepseek winners within 2 steps of the cap**, so the cell is budget-marginal at 100. Raising the knob to 150 did **not** help — see the step-budget experiment below.
 
 ✅ pass · ❌ fail · ⏱ timeout (agent or verifier)
 
@@ -373,9 +370,11 @@ completion (5.6–30 min), passed. See the cell comparison below.
   verification); the other ten tasks sit between 20 K and 96 K tokens each.
 - **Open cells, final status:** filter-js — task-side (0 passes in 13 attempts across 4 agents /
   2 models; its hidden suite can hang the verifier); mailman — moca's *approach* is fixed and
-  measured (6/6 cells), the remaining question is the `MOCA_MAX_STEPS` budget, a protocol decision,
-  not a moca fix; nginx — task-side regex coin flip; cobol — verified but occasionally expensive
-  (one deepseek timeout); everything else is at ceiling and only variance moves it.
+  measured (6/6 cells) and the budget question is now **answered**: 150 requests converts nothing
+  (3/6, and it enabled a 30-minute burn), so the protocol stays at 100 and the cell is
+  model-behaviour-limited (~50–70% by model — the `open` regression and looping, not the budget);
+  nginx — task-side regex coin flip; cobol — verified but occasionally expensive (one deepseek
+  timeout); everything else is at ceiling and only variance moves it.
 - **Protocol note for the next benchmark:** keep the cell diagnostics in the loop (they cost ~$0.7
   per slice and answer questions a subset round cannot), and treat any single-attempt round as a
   smoke test rather than evidence about a release.
@@ -434,8 +433,36 @@ Jobs `…20261018-112017` (glm, $0.230) and `…20261018-114408` (deepseek, $0.4
   failure.
 - Everything else held within the noise band: fix-git 5/6 (the same P F P seen at v0.6.3),
   custom-memory 6/6, cobol 5/6 (one deepseek agent timeout).
-- **The binding constraint on mailman is now the step budget, not the approach.** The subset
-  round's failure died at 100 tool batches mid-delivery (6.5 min, 2.2 M tokens); the six successful
-  attempts had the room to finish. If the cell is to go green in the single-attempt subset protocol,
-  `MOCA_MAX_STEPS` is the knob to discuss — moca's own default is 40, this report's protocol uses
-  100, and any change must be recorded here and applied to every agent alike.
+- **The step budget is marginal, but raising it does not fix the cell.** The subset failure ran out of budget mid-delivery (101 requests); the @100 winners used 40–98, two of them within 2 steps of the cap. A follow-up at `MOCA_MAX_STEPS=150` produced **3/6 — no better than 6/6 at 100 — and none of its failures were budget-limited**: an `open`-policy regression (67 requests, clean exit), a stuck-loop exit at 28, and one run that spent the *whole* raised budget (151 requests, `open` ×52) and was then killed by the **1800 s wall clock** at 5.2 M tokens. The knob stays at 100 — as a guardrail, not a handicap (see the step-budget experiment below).
+
+### Step-budget experiment — mailman at 150 requests (2026-10-18)
+
+`context.maxSteps` counts **model requests** (`if step == maxSteps { wrapUp }`) and moca's session
+records one `usage` block per request, so the counter is measurable straight from the artifacts.
+Jobs `…20261018-140553` (glm) and `…20261018-141549` (deepseek), both at `MOCA_MAX_STEPS=150`;
+the @100 rows are the runs above.
+
+| when | protocol | attempt results | requests used (passes in bold) |
+|---|---|---|---|
+| round 4 (v0.6.2) | @100 | fail — `open`, no cap | 79 |
+| round 5 (v0.6.3) | @100 | fail — cap | 101 |
+| v0.6.3 cells glm | @100 | **P** / F / F | **101 (cap — passed from the wrap-up)** / 101 / 87 |
+| v0.6.3 cells dsv4 | @100 | **P** / **P** / timeout | 72 / 96 / – |
+| round 6 subset (v0.6.4) | @100 | fail — cap | 101 |
+| v0.6.4 cells glm | @100 | **P ×3** | 40 / 71 / 83 |
+| v0.6.4 cells dsv4 | @100 | **P ×3** | 97 / 98 / 89 |
+| **experiment glm** | **@150** | **P** / F (`open`) / killed | **71** / 67 / 151 (cap), then the 1800 s wall clock |
+| **experiment dsv4** | **@150** | **P** / **P** / F (stuck exit) | 76 / 73 / 28 |
+
+- **The cap was real but it is not the lever.** One @100 winner passed *from* the wrap-up (101
+  requests, exit 3, verifier green) and one @150 run consumed the entire raised budget — 151
+  requests, `SubscriptionPolicy.open` ×52 — before the **1800 s wall clock** killed it at 5.2 M
+  tokens with no verdict. The other two @150 failures never approached the budget: a clean-exit
+  `open` regression at 67 requests and a stuck-loop stop at 28.
+- **Verdict: keep `MOCA_MAX_STEPS=100`.** The extra headroom converted no attempt (3/6 at 150 vs
+  6/6 at 100, n=3 per model in both), and it *enabled* a 30-minute, 5.2 M-token burn the cap would
+  have cut short. The cell's variance is model behaviour — the policy choice (`confirm` vs the task
+  text's `open`) and looping — not the budget. Across protocols mailman runs ~50–70% by model
+  (glm 1–3/3, deepseek 2–3/3), and every low-pass round was a single attempt of it.
+- Instrumentation note: requests = session entries carrying a `usage` block (the wrap-up included);
+  the cap fires at `step == maxSteps`, so a capped run shows `maxSteps + 1`.

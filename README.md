@@ -159,6 +159,8 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | `permission denied` on docker | `sudo usermod -aG docker $USER` + re-login. |
 | Harbor behaving oddly after an upgrade | Keep the pin: bump `HARBOR_VERSION` in `.env`, then `uv tool uninstall harbor && make setup`. |
 | Job failed halfway / rate limits | Re-run; Harbor resumes what's cached. Add `--max-retries 1` for transient API errors. |
+| Two legs launched in the same second | Handled: `run` passes a unique `--job-name` because Harbor names job directories by second — without it one leg dies instantly with `Job directory … already exists and cannot be resumed with a different config`. |
+| Harbor hangs in `Collecting main service artifacts` after an agent-phase timeout | The trial's files are already complete on disk (`agent/moca-session.jsonl`, `agent/moca.txt`, `exception.txt`, `verifier/`): kill the harbor process and read them — a leg stuck there does not finish on its own. |
 
 ## Verified status (2026-10-10 → 2026-10-17, this host)
 
