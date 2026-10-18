@@ -38,7 +38,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 _GITHUB_REPO = "adeotek/moca"
-_DEFAULT_VERSION = "v0.6.3"
+_DEFAULT_VERSION = "v0.6.4"
 _DEFAULT_MAX_STEPS = 100
 # The v0.4.0 permission-mode overhaul replaced the legacy --yolo flag with
 # `--mode yolo`; version bisects must speak both dialects.
