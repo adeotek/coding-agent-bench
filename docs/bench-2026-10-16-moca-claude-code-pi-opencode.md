@@ -249,24 +249,25 @@ from `results/jobs/` — the job ids are named so any figure can be re-derived w
 | v0.6.2 | 10-17 | `…20261017-191809` | 8/12 | $0.1634 | 2.99 M¹ | $0.0204 | 374,224¹ | 20.1 min |
 | v0.6.3 | 10-17 | `…20261017-230714` | 7/12 | $0.2830 | 6.02 M | $0.0404 | 859,796 | 12.7 min |
 | v0.6.4 | 10-18 | `…20261018-124841` | **10/12** | $0.2604 | 6.16 M | $0.0260 | 616,409 | 10.4 min |
+| v0.7.4 | 10-22 | `…20261022-143907-1093976` | 8/12 | $0.4194 | 7.43 M | $0.0524 | 929,293 | 19.8 min |
 
 ¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its session,
 so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
 
-| task | v0.3.0 | v0.5.1 | v0.6.0 | v0.6.1 | v0.6.2 | v0.6.3 | v0.6.4 |
-|---|---|---|---|---|---|---|---|
-| fix-git | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| kv-store-grpc | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| extract-elf | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| multi-source-data-merger | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| custom-memory-heap-crash | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| log-summary-date-ranges | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| build-cython-ext | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| db-wal-recovery | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| cobol-modernization | ✅ | ❌ | ✅ | ✅ | ⏱ | ❌ | ✅ |
-| nginx-request-logging | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| mailman | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌¹ |
-| filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ | ❌ | ❌ |
+| task | v0.3.0 | v0.5.1 | v0.6.0 | v0.6.1 | v0.6.2 | v0.6.3 | v0.6.4 | v0.7.4 |
+|---|---|---|---|---|---|---|---|---|
+| fix-git | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| kv-store-grpc | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| extract-elf | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| multi-source-data-merger | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| custom-memory-heap-crash | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| log-summary-date-ranges | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| build-cython-ext | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| db-wal-recovery | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| cobol-modernization | ✅ | ❌ | ✅ | ✅ | ⏱ | ❌ | ✅ | ✅ |
+| nginx-request-logging | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| mailman | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌¹ | ❌ |
+| filter-js-from-html | ❌ | ❌ | ❌ | ❌ | ⏱ | ❌ | ❌ | ❌ |
 
 ¹ Round 6's mailman failure was the **step cap**: the session shows 101 model requests (the cap fires when `step == maxSteps`; the extra one is the tool-less wrap-up) — it was still mid-delivery work (111 `postfix` / 73 `lmtp` mentions) when the budget ran out. The six cell-run attempts that finished used 40–98 requests, **two deepseek winners within 2 steps of the cap**, so the cell is budget-marginal at 100. Raising the knob to 150 did **not** help — see the step-budget experiment below.
 
@@ -301,6 +302,20 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
   the run was doing the delivery-path work when the 100-step cap killed it at 6.5 min (all six
   cell-run attempts at v0.6.4 that ran to completion passed). nginx held its green, cobol returned,
   and the fix-git/custom-memory round-5 losses did not repeat.
+- **v0.6.4 → v0.7.4 (10/12 → 8/12): a minor release, two diagnosed losses, cheaper on the easy
+  cells.** v0.6.5 was docs-only and was not benched (behaviour identical by construction). v0.7.4 is
+  22 commits on: v0.7.0 self-managed project skills — opt-in, and the protocol's minimal config never
+  enables it, with `recordNudgeDue` requiring `SkillGuard`, so no skills nudge fires in these runs —
+  then config check/sample, permission-rule specificity, shell-confinement and stream hardening. The
+  adapter's four contracts were re-verified before spending (`--mode yolo`, `context.maxSteps`, the
+  session `usage`/`cost` shape and exit 3 are unchanged; a moca-only smoke scored 1.0 for $0.0006).
+  Two losses: `custom-memory` PASS → FAIL at **101 requests (cap)** — 1.27 M → 3.01 M tokens, 5/6
+  verifier assertions, cut off mid-work with no refusal in its 82 shell calls — and `db-wal-recovery`
+  PASS → FAIL as a genuine miss (37 requests, zero refusals, 32 shell calls of real WAL forensics
+  that never decrypted it). Efficiency split both ways: `cobol` 922 K → 106 K (52 → 14 requests) and
+  `build-cython` 818 K → 481 K, while `filter-js` — task-side, still red — went 3 → 47 requests
+  trying. mailman capped again (101 requests; `open` ×184 / `confirm` ×188 with the delivery work
+  done).
 
 ### Round 4 forensics — all four fails are diagnosable
 
@@ -362,19 +377,24 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
   *explained*: `filter-js` is task-side, and `mailman` failed only through a step-budget truncation
   while its own cell record is 6/6. v0.6.1 remains the efficiency champion ($0.0182/solved vs
   $0.0260), but it is the only round at the top without a per-cell diagnosis of its two fails.
-- **The band across seven rounds is 6–10/12 with v0.6.1 and v0.6.4 at the top**, and the difference
-  between a good and a bad round is dominated by single-attempt variance — which is why the cell
-  runs, not the round scores, were what settled the mailman question (3/6 → 6/6 at n=3 per model).
-- **Efficiency:** tok/solved 258 K → 1.28 M → 969 K → 420 K → 374 K → 860 K → 616 K. Every
-  remaining spike traces to the same two cells (mailman's delivery work and cobol's deep
-  verification); the other ten tasks sit between 20 K and 96 K tokens each.
-- **Open cells, final status:** filter-js — task-side (0 passes in 13 attempts across 4 agents /
-  2 models; its hidden suite can hang the verifier); mailman — moca's *approach* is fixed and
-  measured (6/6 cells) and the budget question is now **answered**: 150 requests converts nothing
-  (3/6, and it enabled a 30-minute burn), so the protocol stays at 100 and the cell is
-  model-behaviour-limited (~50–70% by model — the `open` regression and looping, not the budget);
-  nginx — task-side regex coin flip; cobol — verified but occasionally expensive (one deepseek
-  timeout); everything else is at ceiling and only variance moves it.
+- **The band across eight rounds is 6–10/12** — v0.6.1 and v0.6.4 at the top (10), v0.7.4 at 8 with
+  both losses diagnosed, the spread driven by single-attempt variance. That is why the cell runs, not
+  the round scores, settled the mailman question (3/6 → 6/6 at n=3 per model) — and why a round like
+  v0.7.4 (two losses against four efficiency gains) reads as a per-cell data point, not a release
+  verdict.
+- **Efficiency:** tok/solved 258 K → 1.28 M → 969 K → 420 K → 374 K → 860 K → 616 K → 929 K. The
+  v0.7.4 spike is the two capped cells (custom-memory 3.01 M, mailman 2.46 M); the rest of the suite
+  got *cheaper* — cobol 922 K → 106 K, build-cython 818 K → 481 K — so the tail has moved from
+  cobol's verification to custom-memory and mailman.
+- **Open cells at v0.7.4:** `filter-js` — task-side, unchanged (0 passes in 14 attempts across 4
+  agents / 2 models; v0.7.4 spends 629 K tokens trying); `mailman` — capped at 101 requests again
+  (`open` ×184 / `confirm` ×188, delivery work present), the ~50–70% model-behaviour cell from the
+  step-budget experiment; `custom-memory` — the new cap casualty (58 → 101 requests, 1.27 M → 3.01 M
+  tokens, verifier 5/6, **no refusal in 82 shell calls**): the budget question is now this cell's,
+  and a 150-step cell run is the next measurement, not another rule; `db-wal-recovery` — back to red
+  after four consecutive greens with zero refusals and a clean exit at 37 requests (variance, and the
+  candidate for a cell run before anyone calls it a regression); nginx, cobol, fix-git, kv-store,
+  build-cython, log-summary, extract-elf and multi-source are green and only variance moves them.
 - **Protocol note for the next benchmark:** keep the cell diagnostics in the loop (they cost ~$0.7
   per slice and answer questions a subset round cannot), and treat any single-attempt round as a
   smoke test rather than evidence about a release.
