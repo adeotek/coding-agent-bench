@@ -115,7 +115,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.6.5` | pinned moca release package |
+| `MOCA_VERSION` | `v0.7.4` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
 | `OPENCODE_VERSION` | `2.0.30` | pinned OpenCode release (npm `@opencode/cli`) |
 | `PI_VERSION` | `1.3.0` | pinned Pi release (npm) |
@@ -138,7 +138,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 
 - **Harbor**: pinned by `HARBOR_VERSION` (`make setup` installs exactly that).
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
-- **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies).
+- **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies). The 12-task benchmark set is checked in as `docs/tb2-subset-12.txt` — `TASK_NAMES=$(tr '\n' ',' < docs/tb2-subset-12.txt | sed 's/,$//')` (it lives in the repo so it can't be lost to a scratch-dir sweep).
 - **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` records moca's step budget. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
 - The rendered effective config is saved to `results/effective-<profile>.json` (refreshed for inspection) and copied into each job directory, so every run records exactly what ran. A `run` renders to a per-run `results/effective-<profile>-<timestamp>-<pid>.json` and hands *that* path to Harbor, so two concurrent runs cannot pick up each other's config between render and exec (the canonical name is only a convenience copy).
 

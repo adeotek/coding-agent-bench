@@ -47,7 +47,7 @@ def agents(_profile: str) -> list[dict]:
                 "import_path": "agents.moca:Moca",
                 "model_name": zen,
                 "kwargs": {
-                    "version": env("MOCA_VERSION", "v0.6.5"),
+                    "version": env("MOCA_VERSION", "v0.7.4"),
                     "max_steps": env_int("MOCA_MAX_STEPS", 100),
                 },
             },
