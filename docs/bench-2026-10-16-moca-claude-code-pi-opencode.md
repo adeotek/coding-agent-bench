@@ -386,15 +386,16 @@ so that trial reports 0 tokens. Treat v0.6.2's token figures as a floor.
   v0.7.4 spike is the two capped cells (custom-memory 3.01 M, mailman 2.46 M); the rest of the suite
   got *cheaper* — cobol 922 K → 106 K, build-cython 818 K → 481 K — so the tail has moved from
   cobol's verification to custom-memory and mailman.
-- **Open cells at v0.7.4:** `filter-js` — task-side, unchanged (0 passes in 14 attempts across 4
-  agents / 2 models; v0.7.4 spends 629 K tokens trying); `mailman` — capped at 101 requests again
-  (`open` ×184 / `confirm` ×188, delivery work present), the ~50–70% model-behaviour cell from the
-  step-budget experiment; `custom-memory` — the new cap casualty (58 → 101 requests, 1.27 M → 3.01 M
-  tokens, verifier 5/6, **no refusal in 82 shell calls**): the budget question is now this cell's,
-  and a 150-step cell run is the next measurement, not another rule; `db-wal-recovery` — back to red
-  after four consecutive greens with zero refusals and a clean exit at 37 requests (variance, and the
-  candidate for a cell run before anyone calls it a regression); nginx, cobol, fix-git, kv-store,
-  build-cython, log-summary, extract-elf and multi-source are green and only variance moves them.
+- **Open cells at v0.7.4 (both settled by cell runs):** `filter-js` — task-side, unchanged (0 passes
+  in 14 attempts across 4 agents / 2 models; v0.7.4 spends 629 K tokens trying); `mailman` — capped
+  at 101 requests again (`open` ×184 / `confirm` ×188, delivery work present), the ~50–70%
+  model-behaviour cell from the step-budget experiment; `custom-memory` — the round's cap casualty
+  (58 → 101 requests, 1.27 M → 3.01 M tokens, verifier 5/6, **no refusal in 82 shell calls**); its
+  @150 cell run went 2/3 with the flail arm burning 6.20 M tokens / $0.30 and still ending at 5/6 —
+  a search-space failure, so **the budget stays 100**; `db-wal-recovery` — the round's other red,
+  and its cell run went **3/3 in 7–14 requests**, so variance, not a regression: nothing to fix.
+  nginx, cobol, fix-git, kv-store, build-cython, log-summary, extract-elf and multi-source are green
+  and only variance moves them.
 - **Protocol note for the next benchmark:** keep the cell diagnostics in the loop (they cost ~$0.7
   per slice and answer questions a subset round cannot), and treat any single-attempt round as a
   smoke test rather than evidence about a release.
@@ -486,3 +487,32 @@ the @100 rows are the runs above.
   (glm 1–3/3, deepseek 2–3/3), and every low-pass round was a single attempt of it.
 - Instrumentation note: requests = session entries carrying a `usage` block (the wrap-up included);
   the cap fires at `step == maxSteps`, so a capped run shows `maxSteps + 1`.
+
+### Round 7 cell diagnostics — db-wal and custom-memory at v0.7.4 (2026-10-22)
+
+Both round-7 losses were diagnosed as budget/variance rather than approach, so each got a cell run
+before anyone called it a regression. Protocol: moca v0.7.4, `glm-5.3-flash`, 3 attempts each,
+`--max-retries 1`, the two legs in parallel (unique job names — `…20261022-155632-1217193` for
+db-wal, `…20261022-155652-1219888` for custom-memory).
+
+| cell | protocol | attempts | requests (passes bold) | spend |
+|---|---|---|---|---|
+| `db-wal-recovery` | @100 | **P ×3** | **14 / 11 / 7** | $0.0176 |
+| `custom-memory-heap-crash` | **@150** | **P / P** / F (cap) | **16 / 36** / 151 | $0.3369 |
+
+- **db-wal-recovery is variance, not a regression.** Three greens at the protocol budget, 7–14
+  requests each — cheaper than round 7's *failing* attempt (37 requests, 473 K tokens). The cell
+  either cracks the encrypted WAL quickly or flails; round 7 caught the flail side, with zero
+  refusals and a clean exit. Nothing to fix.
+- **custom-memory's cap hit was not the budget either.** At 150 it went 2/3: the two passes used
+  16 and 36 requests (well inside 100), while the flail arm consumed the *entire* raised budget —
+  **151 requests, 6.20 M tokens, $0.3009, 17.2 min** — and ended at 5/6 assertions with its own
+  closing line "I have not reached a working fix yet". That is a search-space failure (the
+  facet/allocation angle was never found), not a truncation one, and it is 2× mailman's @150 burn
+  for the same non-conversion.
+- **Verdict, again: keep `MOCA_MAX_STEPS=100`.** Two cells now agree — the raised budget converts
+  nothing and enables the expensive failure mode (mailman 5.2 M / $0.236; custom-memory 6.20 M /
+  $0.3009). The fast arm (16–36 requests) never sees the cap; the slow arm's problem is what it
+  searches, not how long it may search.
+- Cell economics for future rounds: these two cells cost $0.354 together — db-wal $0.018, and
+  custom-memory $0.337, of which the single capped flail was 89%.
