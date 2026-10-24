@@ -50,12 +50,76 @@ render() { # profile [out-path] -> prints config path
 # Agent-phase env for the provider-dependent agents. The values are expanded
 # here from the shell environment; the .env file itself is never handed to
 # Harbor. (Note: expanded values appear transiently in this process's argv.)
+#
+# One variable names the zen key everywhere: OPENCODE_API_KEY — moca's own
+# built-in default for the `opencode-go` provider, and the name OpenCode and Pi
+# read. OPENCODE_GO_KEY is the pre-2026-10 name; it is still accepted (with a
+# warning) so an older .env keeps working, but nothing new should set it.
 AE_ARGS=()
+_ZEN_KEY_WARNED=""
+zen_key() {
+  local key="${OPENCODE_API_KEY:-}"
+  if [ -z "$key" ] && [ -n "${OPENCODE_GO_KEY:-}" ]; then
+    key="$OPENCODE_GO_KEY"
+    if [ -z "$_ZEN_KEY_WARNED" ]; then
+      echo "warning: OPENCODE_GO_KEY is deprecated — rename it to OPENCODE_API_KEY in .env" >&2
+      _ZEN_KEY_WARNED=1
+    fi
+  fi
+  printf '%s' "$key"
+}
+
 agent_env_args() {
   AE_ARGS=()
-  if [ -n "${OPENCODE_GO_KEY:-}" ]; then
-    AE_ARGS+=(--ae "OPENCODE_API_KEY=$OPENCODE_GO_KEY")
-    AE_ARGS+=(--ae "OPENCODE_GO_KEY=$OPENCODE_GO_KEY")
+  local key
+  key="$(zen_key)"
+  if [ -n "$key" ]; then
+    AE_ARGS+=(--ae "OPENCODE_API_KEY=$key")
+  fi
+}
+
+# moca >= v0.7.10 discovers each provider's model list and validates the
+# configured `model` against it (fail-open on discovery errors, but a resolved
+# model that the catalog does not list fails the session). Probe the catalog
+# the same way so a retired or renamed model id is caught before a sweep.
+zen_models_url() { # provider -> public /models URL (zen gateways only)
+  case "$1" in
+    opencode-go) echo "https://opencode.ai/zen/go/v1/models" ;;
+    opencode)    echo "https://opencode.ai/zen/v1/models" ;;
+    *) return 1 ;;
+  esac
+}
+
+check_model_id() {
+  local model="${ZEN_MODEL:-opencode-go/deepseek-v4.1-flash}" provider id url key body
+  provider="${model%%/*}"
+  id="${model#*/}"
+  key="$(zen_key)"
+  if ! url="$(zen_models_url "$provider")"; then
+    echo "skip: $provider is not a zen gateway (no public /models probe)"
+    return
+  fi
+  if [ -z "$key" ]; then
+    echo "skip: no zen key set"
+    return
+  fi
+  # The key travels in a curl config read from stdin, never in argv.
+  local hdr="Authorization: Bearer ${key}"
+  if ! body="$(printf 'header = "%s"\n' "$hdr" |
+      curl -fsS -m 15 --config - "$url" 2>/dev/null)"; then
+    echo "WARN: could not read $url (network or auth) — model id unverified"
+    return
+  fi
+  if printf '%s' "$body" | "$PYTHON" -c '
+import json, sys
+ids = [m.get("id") for m in json.load(sys.stdin).get("data", [])]
+sys.exit(0 if sys.argv[1] in ids else 1)
+' "$id"; then
+    echo "OK: $model is listed by $provider ($url)"
+  else
+    echo "WARN: $id is not listed by $provider — moca >= v0.7.10 validates the"
+    echo "      model against the discovered catalog and refuses to start (exit 2);"
+    echo "      a released pin that lists it is fine only if discovery fails open."
   fi
 }
 
@@ -102,16 +166,23 @@ cmd_doctor() {
   echo "== moca adapter (agents/moca.py)"
   if [ -x "$HBPY" ]; then
     PYTHONPATH="$REPO" "$HBPY" -c \
-      'import agents.moca as m; print("import OK:", m.Moca.name(), "| default pin:", m._DEFAULT_VERSION)'
+      'import agents.moca as m; print("import OK:", m.Moca.name(), "| default pin:", m._DEFAULT_VERSION, "| key env:", m._API_KEY_ENV)'
   else
     echo "skip: $HBPY not found (install harbor first)"
   fi
 
   echo
   echo "== credentials (values not shown)"
-  for v in OPENCODE_GO_KEY ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN; do
+  for v in OPENCODE_API_KEY OPENCODE_GO_KEY ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN; do
     if [ -n "${!v:-}" ]; then echo "  $v: set"; else echo "  $v: unset"; fi
   done
+  if [ -n "${OPENCODE_GO_KEY:-}" ] && [ -z "${OPENCODE_API_KEY:-}" ]; then
+    echo "  note: OPENCODE_GO_KEY is the deprecated name — bench.sh still forwards it"
+  fi
+
+  echo
+  echo "== model id (provider catalog)"
+  check_model_id
 
   if [ "$probe" = 1 ]; then
     echo

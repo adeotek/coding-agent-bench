@@ -1,5 +1,11 @@
 # Benchmark report — moca vs Claude Code vs Pi vs OpenCode on Terminal-Bench 2.0 (12-task subset)
 
+> **Superseded as a tracking document.** The living reports are
+> [`agents-bench-report.md`](agents-bench-report.md) (cross-agent) and
+> [`moca-bench-report.md`](moca-bench-report.md) (moca release history, including the v0.6.0–
+> v0.7.4 follow-ups that used to live in this file). This page is kept for the forensic detail
+> of the 2026-10-16 run.
+
 **Date:** 2026-10-16 · **Harness:** Harbor 0.24.0, Docker 29.9.1, dataset `terminal-bench@2.0` (same 12-task fixed subset as the 2026-10-11 run)
 **Job:** `cab-subset-20261016-004433` (48 trials, 1 attempt per task × agent, concurrency 2) · **Runtime:** 2h 03m · **Real API spend:** $1.13 (zen key) + $0 (Claude subscription; $5.68 API-equivalent)
 

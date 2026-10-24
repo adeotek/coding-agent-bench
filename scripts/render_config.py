@@ -38,7 +38,7 @@ def env_int(name: str, default: int) -> int:
 
 
 def agents(_profile: str) -> list[dict]:
-    zen = env("ZEN_MODEL", "opencode-go/glm-5.3-flash")
+    zen = env("ZEN_MODEL", "opencode-go/deepseek-v4.1-flash")
     claude = env("CLAUDE_MODEL", "anthropic/claude-sonnet-5")
     entries: list[tuple[str, dict]] = [
         (
@@ -47,8 +47,12 @@ def agents(_profile: str) -> list[dict]:
                 "import_path": "agents.moca:Moca",
                 "model_name": zen,
                 "kwargs": {
-                    "version": env("MOCA_VERSION", "v0.7.4"),
+                    "version": env("MOCA_VERSION", "v0.7.10"),
                     "max_steps": env_int("MOCA_MAX_STEPS", 100),
+                    # Rendered, not inherited: v0.7.2 changed moca's default
+                    # permission mode to `auto`, so the protocol's yolo stance
+                    # has to be visible in the recorded job config.
+                    "mode": env("MOCA_MODE", "yolo"),
                 },
             },
         ),
@@ -61,7 +65,7 @@ def agents(_profile: str) -> list[dict]:
                 # install + the run command and inherits everything else.
                 "import_path": "agents.opencode_v2:OpenCodeV2",
                 "model_name": zen,
-                "kwargs": {"version": env("OPENCODE_VERSION", "2.0.30")},
+                "kwargs": {"version": env("OPENCODE_VERSION", "2.1.4")},
             },
         ),
         (
@@ -69,7 +73,7 @@ def agents(_profile: str) -> list[dict]:
             {
                 "name": "pi",
                 "model_name": zen,
-                "kwargs": {"version": env("PI_VERSION", "1.3.0")},
+                "kwargs": {"version": env("PI_VERSION", "1.4.0")},
             },
         ),
         (
@@ -77,7 +81,7 @@ def agents(_profile: str) -> list[dict]:
             {
                 "name": "claude-code",
                 "model_name": claude,
-                "kwargs": {"version": env("CLAUDE_VERSION", "2.1.301")},
+                "kwargs": {"version": env("CLAUDE_VERSION", "2.1.310")},
             },
         ),
     ]

@@ -1,5 +1,10 @@
 # Benchmark report — moca vs Claude Code vs Pi on Terminal-Bench 2.0 (12-task subset)
 
+> **Superseded as a tracking document.** The living reports are
+> [`agents-bench-report.md`](agents-bench-report.md) (cross-agent) and
+> [`moca-bench-report.md`](moca-bench-report.md) (moca release history). This page is kept for
+> the forensic detail of the 2026-10-11 run.
+
 **Date:** 2026-10-11 · **Harness:** Harbor 0.24.0, Docker 29.9.0, dataset `terminal-bench@2.0` (12-task fixed subset)
 **Job:** `cab-subset-20261011-134651` (36 trials, 1 attempt per task × agent, concurrency 2) · **Runtime:** 1h 31m · **Real API spend:** $0.62 (zen key) + $0 (Claude subscription)
 
