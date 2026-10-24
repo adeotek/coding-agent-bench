@@ -8,7 +8,7 @@ trusting this prose. The cross-agent comparison lives in
 produced the diagnoses below are [`bench-2026-10-11-…`](bench-2026-10-11-moca-claude-code-pi.md)
 and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
-> **Pin vs measurement.** `MOCA_VERSION` is **v0.7.9** (released 2026-10-23). The latest
+> **Pin vs measurement.** `MOCA_VERSION` is **v0.7.10** (released 2026-10-24). The latest
 > *measured* release is **v0.7.4** — v0.7.5–v0.7.9 have not been benched, and v0.7.10 (the
 > branding + review + model-discovery train) is not tagged yet, though its four PRs are all
 > merged (through #70, 2026-10-24), so the tag can appear any day. Read every number below as
@@ -56,7 +56,7 @@ Two rules this report follows, learned the hard way:
 session, so that trial reports 0 tokens. Treat v0.6.2's figures as a floor.
 
 **v0.6.5 was not benched** — docs-only by construction (no agent-loop change), so it carries
-no row. That makes the current pin (v0.7.9) a **five-release jump** from the last measurement.
+no row. That makes the current pin (v0.7.10) a **six-release jump** from the last measurement.
 
 ## Per-task matrix
 
@@ -203,11 +203,11 @@ remains the efficiency point to beat ($0.0182/solved, 415 K tok/solved).
 3. **The protocol still spends single attempts on contested cells.** Rounds 4–7 each moved
    ±2–3 cells on variance alone. Any release-level claim from a 12-task/1-attempt round is
    noise at this n.
-4. **v0.7.4 → v0.7.9 is an unmeasured five-release jump** (v0.7.5 docs/CLI, v0.7.6 reasoning
+4. **v0.7.4 → v0.7.10 is an unmeasured six-release jump** (v0.7.5 docs/CLI, v0.7.6 reasoning
    echo, v0.7.7 approval keys + session allows, v0.7.8 packaging/ACP auth, v0.7.9 distribution
-   renderers). v0.7.7's approval-key change is inert under `--mode yolo` but would matter if
-   the protocol ever runs `auto`/`ask`. If v0.7.9 moves a cell, the delta cannot be attributed
-   to one release without a bisect.
+   renderers, v0.7.10 branding + discovery). v0.7.7's approval-key change is inert under
+   `--mode yolo` but would matter if the protocol ever runs `auto`/`ask`. If v0.7.10 moves a
+   cell, the delta cannot be attributed to one release without a bisect.
 5. **v0.7.10 changes the prompt and the startup path.** The branding pass rewrites the system
    prompt ("You are Mo…"), which is part of the cached prefix — expect a prompt-cache reset and
    a token-profile change in the first v0.7.10 round, not a behaviour change. Model discovery
@@ -228,14 +228,14 @@ remains the efficiency point to beat ($0.0182/solved, 415 K tok/solved).
 
 **Proposed actions for the next moca version (and the rounds around it)**
 
-1. **Bench v0.7.9 before v0.7.10 lands — on the new model.** One subset round at
-   `deepseek-v4.1-flash` establishes the new baseline and isolates the five-release delta from
-   the branding/discovery delta; it is **not** comparable cell-by-cell to the glm rows. If a
-   cell moves, re-run that cell at v0.7.4 on the same model to separate release from model (the
-   adapter speaks both CLI dialects, so old pins stay runnable).
-2. **Then bench v0.7.10 when it is tagged**, and re-verify the adapter's three contracts in
-   the same job: `--mode yolo`, `context.maxSteps`, and the session `usage`/`cost` shape
-   (discovery adds requests, not usage fields).
+1. **Bench v0.7.10 — on the new model.** Released and pinned, so it is one command away. One
+   subset round at `deepseek-v4.1-flash` establishes the new baseline; it carries the
+   six-release delta *and* the model change, so it is **not** comparable cell-by-cell to the
+   glm rows. If a cell moves, re-run that cell at v0.7.4 on the same model to separate release
+   from model (the adapter speaks both CLI dialects, so old pins stay runnable).
+2. **Re-verify the adapter's three contracts in that same job**: `--mode yolo`,
+   `context.maxSteps`, and the session `usage`/`cost` shape (discovery adds requests, not
+   usage fields).
 3. **mailman:** keep the delivery rule and stop adding rules written from a single trial. Run
    one cell slice (3 attempts × 2 models) per release; if a run fails, read whether the
    confirmation mail reached `/var/mail/<user>` before blaming the policy. The task text and

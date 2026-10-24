@@ -120,7 +120,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/deepseek-v4.1-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.7.9` | pinned moca release package |
+| `MOCA_VERSION` | `v0.7.10` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
 | `MOCA_MODE` | `yolo` | moca permission mode, rendered into the job config (v0.7.2 made `auto` moca's default) |
 | `OPENCODE_VERSION` | `2.1.4` | pinned OpenCode release (npm `@opencode/cli`) |
@@ -189,7 +189,7 @@ Add the row (moca report) or the column (agents report), re-derive the matrix, w
 
 ## Status & history
 
-Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.9 · OpenCode 2.1.4 · Pi 1.4.0 · Claude Code 2.1.310 · dataset `terminal-bench@2.0` with the checked-in 12-task subset.
+Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.10 · OpenCode 2.1.4 · Pi 1.4.0 · Claude Code 2.1.310 · dataset `terminal-bench@2.0` with the checked-in 12-task subset.
 
 - `make doctor` validates docker, Harbor, the adapter import (with its default pin and key variable) and credential presence; it also reads the provider's `/models` catalog and warns when `ZEN_MODEL` is not listed there — moca ≥ v0.7.10 validates the configured model against its discovered list, so a retired id must be caught before a sweep, not during one.
 - `--dry-run` passes both profiles (smoke = 4 trials; subset with `docs/tb2-subset-12.txt` = 48 trials).

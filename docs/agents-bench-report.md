@@ -129,7 +129,7 @@ same task in 45 s the week before. `filter-js` is the other loss.
 
 ## What would make this report current
 
-1. **Re-run the four-agent sweep at the current pins** — moca v0.7.9, OpenCode 2.1.4, Pi 1.4.0,
+1. **Re-run the four-agent sweep at the current pins** — moca v0.7.10, OpenCode 2.1.4, Pi 1.4.0,
    Claude Code 2.1.310 — same 12-task subset, 1 attempt, ~2 h, ≈$1–2 zen + $0 cash. It runs on
    `deepseek-v4.1-flash`, so it is a **new baseline**: compare it to the glm snapshot as a
    model change too, never as a pure agent delta. That is the only way to replace the
