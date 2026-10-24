@@ -9,10 +9,8 @@ produced the diagnoses below are [`bench-2026-10-11-…`](bench-2026-10-11-moca-
 and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
 > **Pin vs measurement.** `MOCA_VERSION` is **v0.7.10** (released 2026-10-24). The latest
-> *measured* release is **v0.7.4** — v0.7.5–v0.7.9 have not been benched, and v0.7.10 (the
-> branding + review + model-discovery train) is not tagged yet, though its four PRs are all
-> merged (through #70, 2026-10-24), so the tag can appear any day. Read every number below as
-> v0.7.4 or older; the pin jump is a pending measurement, not a result.
+> *measured* release is **v0.7.4** — v0.7.5–v0.7.10 have not been benched. Read every number
+> below as v0.7.4 or older; the six-release pin jump is a pending measurement, not a result.
 
 ## Protocol
 
