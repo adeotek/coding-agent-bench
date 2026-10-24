@@ -18,13 +18,13 @@ and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 |---|---|
 | Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories |
 | Model | `opencode-go/deepseek-v4.1-flash` (zen key, `OPENCODE_API_KEY`) since 2026-10-24 — **every row in this report ran `glm-5.3-flash`**, which was the default until then. The 2026-10-18 cell slice is the only place `deepseek-v4.1-flash` appears so far (as the second leg). |
-| moca | `--mode yolo`, `context.maxSteps = 100` (moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
+| moca | `--mode yolo`, `context.maxSteps = 250` from the v0.7.10 round (**100 for every row before it**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
 | Scoring | the task's own verifier; PASS = reward ≥ 1, FAIL = 0.0, `?` = the verifier produced **no verdict** (an exception), which is never folded into FAIL |
 
 Reproduce one round:
 
 ```bash
-AGENTS=moca MOCA_VERSION=<v> MOCA_MAX_STEPS=100 \
+AGENTS=moca MOCA_VERSION=<v> MOCA_MAX_STEPS=250 \
   TASK_NAMES="$(tr '\n' ',' < docs/tb2-subset-12.txt | sed 's/,$//')" \
   ./scripts/bench.sh run subset --max-retries 1 -y
 ```
