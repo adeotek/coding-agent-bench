@@ -15,7 +15,10 @@ agents/moca.py          Harbor integration (BaseInstalledAgent) for moca
 agents/opencode_v2.py   Harbor integration for OpenCode v2 (@opencode/cli)
 scripts/bench.sh        main entry point (setup | doctor | probe | dry-run | run | view | prune)
 scripts/render_config.py renders the effective Harbor JobConfig JSON per profile
+scripts/bench_report.py re-derives the report tables from results/jobs
 scripts/probe-auth.sh   live 1-token credential probes (local binaries, scratch state)
+docs/moca-bench-report.md    every moca run, cross-version, with the next-release actions
+docs/agents-bench-report.md  moca vs Claude Code vs OpenCode vs Pi
 Makefile                thin wrappers around bench.sh (make help)
 results/                job results + rendered configs (gitignored)
 .env                    your credentials + run knobs (gitignored)
@@ -40,14 +43,16 @@ Put them in `.env` (`cp .env.example .env`; it is gitignored):
 
 | Agent(s) | Variable | Where to get it |
 |---|---|---|
-| moca, OpenCode, Pi | `OPENCODE_GO_KEY` | your OpenCode zen key (same key as `~/projects/moca/.env`), used for the `opencode-go` tier |
+| moca, OpenCode, Pi | `OPENCODE_API_KEY` | your OpenCode zen key (same key as `~/projects/moca/.env`), used for the `opencode-go` tier |
 | Claude Code | `ANTHROPIC_API_KEY` **or** `CLAUDE_CODE_OAUTH_TOKEN` | an Anthropic API key; or a subscription token from `claude setup-token` (1-year, headless-friendly) |
 
 How credentials reach the containers:
 
-- **moca** — the adapter writes a minimal `~/.config/moca/config.jsonc` that references the key as `env:OPENCODE_GO_KEY` (the key is never written to disk). The value is delivered in Harbor's agent phase via `--ae OPENCODE_GO_KEY=…`, which `bench.sh` adds automatically.
-- **OpenCode / Pi** — same mechanism via `--ae OPENCODE_API_KEY=…` (the provider-dependent agents get the credential for the model selected with `-m`).
+- **moca** — the adapter writes a minimal `~/.config/moca/config.jsonc` that references the key as `env:OPENCODE_API_KEY` (the key is never written to disk). The value is delivered in Harbor's agent phase via `--ae OPENCODE_API_KEY=…`, which `bench.sh` adds automatically.
+- **OpenCode / Pi** — same mechanism, same variable: the provider-dependent agents get the credential for the model selected with `-m`.
 - **Claude Code** — Harbor auto-forwards `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` from the process environment during that agent's phase only.
+
+One name, deliberately: `OPENCODE_API_KEY` is moca's own built-in default for the `opencode-go` provider, so all three zen agents read the same variable. The old `OPENCODE_GO_KEY` name is still accepted by `bench.sh` with a deprecation warning (rename it in `.env`).
 
 (Note: `--ae` values appear transiently in the local process's argv. The `.env` file itself is never handed to Harbor, and keys are never written into the rendered config.)
 
@@ -115,11 +120,12 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 |---|---|---|
 | `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
-| `MOCA_VERSION` | `v0.7.4` | pinned moca release package |
+| `MOCA_VERSION` | `v0.7.9` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
-| `OPENCODE_VERSION` | `2.0.30` | pinned OpenCode release (npm `@opencode/cli`) |
-| `PI_VERSION` | `1.3.0` | pinned Pi release (npm) |
-| `CLAUDE_VERSION` | `2.1.301` | pinned Claude Code release (npm) |
+| `MOCA_MODE` | `yolo` | moca permission mode, rendered into the job config (v0.7.2 made `auto` moca's default) |
+| `OPENCODE_VERSION` | `2.1.4` | pinned OpenCode release (npm `@opencode/cli`) |
+| `PI_VERSION` | `1.4.0` | pinned Pi release (npm `@earendil-works/pi-coding-agent`) |
+| `CLAUDE_VERSION` | `2.1.310` | pinned Claude Code release (npm) |
 | `N_TASKS` | `20` | subset size |
 | `TASK_NAMES` | — | comma-separated task names (overrides `N_TASKS`) |
 | `N_CONCURRENT` | `2` | concurrent trials (raise on a bigger machine) |
@@ -139,7 +145,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **Harbor**: pinned by `HARBOR_VERSION` (`make setup` installs exactly that).
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
 - **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies). The 12-task benchmark set is checked in as `docs/tb2-subset-12.txt` — `TASK_NAMES=$(tr '\n' ',' < docs/tb2-subset-12.txt | sed 's/,$//')` (it lives in the repo so it can't be lost to a scratch-dir sweep).
-- **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` records moca's step budget. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
+- **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` (npm `@earendil-works/pi-coding-agent`) and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` and `MOCA_MODE` record moca's step budget and permission stance. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
 - The rendered effective config is saved to `results/effective-<profile>.json` (refreshed for inspection) and copied into each job directory, so every run records exactly what ran. A `run` renders to a per-run `results/effective-<profile>-<timestamp>-<pid>.json` and hands *that* path to Harbor, so two concurrent runs cannot pick up each other's config between render and exec (the canonical name is only a convenience copy).
 
 ## Extending
@@ -153,7 +159,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 
 | Symptom | Fix |
 |---|---|
-| Agent fails auth inside the container | `make probe` first — it validates the credential flow locally. moca/OpenCode/Pi need `OPENCODE_GO_KEY`; Claude Code needs `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. |
+| Agent fails auth inside the container | `make probe` first — it validates the credential flow locally. moca/OpenCode/Pi need `OPENCODE_API_KEY`; Claude Code needs `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. |
 | OpenCode fails to call `opencode-go` | The adapter relies on `OPENCODE_API_KEY`. Debug lever: `--ak opencode_config='{"provider":{"opencode-go":{"options":{"apiKey":"{env:OPENCODE_API_KEY}"}}}}'` (OpenCode supports `{env:…}` config interpolation). |
 | Docker out of disk (TB2 images are GBs) | `make prune` between runs; check free space with `make doctor`. |
 | `permission denied` on docker | `sudo usermod -aG docker $USER` + re-login. |
@@ -162,18 +168,33 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | Two legs launched in the same second | Handled: `run` passes a unique `--job-name` because Harbor names job directories by second — without it one leg dies instantly with `Job directory … already exists and cannot be resumed with a different config`. |
 | Harbor hangs in `Collecting main service artifacts` after an agent-phase timeout | The trial's files are already complete on disk (`agent/moca-session.jsonl`, `agent/moca.txt`, `exception.txt`, `verifier/`): kill the harbor process and read them — a leg stuck there does not finish on its own. |
 
-## Verified status (2026-10-10 → 2026-10-17, this host)
+## Reports
 
-- Harbor 0.24.0 installed via uv; Docker 29.9.1; both custom adapters (`agents/moca.py`, `agents/opencode_v2.py`) import cleanly against Harbor's own environment.
-- `--dry-run` passes both profiles: smoke = 4 trials; subset = 80 trials (20 tasks × 4 agents).
-- Live credential probes (local binaries, scratch state): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ (re-run 2026-10-16 on the new pins — all four exercised).
-- **Hello-world smoke, in-container, end to end** (see `results/jobs/cab-smoke-*`): moca ✅, OpenCode ✅, Pi ✅, Claude Code ✅ — all reward 1.0.
-  - moca: 32 s; 7,239 in / 59 out tokens; $0.0011 — usage backfilled into the trial result by the adapter (`agent_result` in the trial's `result.json`).
-  - OpenCode / Pi / Claude Code: reward 1.0 as well. Re-verified 2026-10-16 with moca v0.5.1-beta, OpenCode v2.0.30 (`@opencode/cli`), Pi 1.3.0, Claude Code 2.1.301 — 4/4 again, versions and metrics confirmed in `result.json`.
-- **First subset run (2026-10-11)** — 12 curated TB2 tasks × moca/Claude Code/Pi (36 trials, ~1h31m, $0.62 zen + $0 cash): solved 10/12, 11/12, 9/12 — report and full analysis: `docs/bench-2026-10-11-moca-claude-code-pi.md`.
-- **Second subset run (2026-10-16)** — first 4-agent run, same 12 tasks, latest pins, moca `maxSteps=100` (48 trials, 2h03m, $1.13 zen + $0 cash): solved pi 11/12, opencode 10/12, claude-code 10/12, moca 6/12 — report: `docs/bench-2026-10-16-moca-claude-code-pi-opencode.md`.
-- **moca v0.6.0 follow-up (2026-10-17)** — moca only, same 12-task subset + a 9-task diagnostic (73 min combined, $0.49): diagnostic 6/9 (6/8 on the original 8-task set, up from 3/8), subset **7/12** (up from 6/12; $0.044/solved) — follow-up section of the 2026-10-16 report. Every request ran at `effort=low` (the flash serving variant accepts only `low|high|max`; v0.6.0 clamps), and the trial sessions confirm the adapter's exit-3/metrics contract on the new version.
-- **moca v0.6.1 round 3 (2026-10-17)** — moca only, same 12-task subset (25 min, **$0.18**, 4.20M tokens): subset **10/12** (up from 7/12; $0.018/solved — best moca result since v0.3.0 and one convertible cell from the field's best 11/12). The shell-level stateful-file guard fired on the wire and converted `db-wal-recovery`; `build-cython-ext` and `nginx-request-logging` converted too, no regressions. `mailman` root-caused (the agent set `SubscriptionPolicy.open`, which suppresses the confirmation mail the task's stated behaviour requires) and `filter-js-from-html` audited as a task-side contradiction (0 passes in 10 attempts across four agents — the prose demands byte preservation while the hidden test requires BeautifulSoup re-serialisation) — follow-up 2 section of the 2026-10-16 report.
+Two tracking reports are the benchmark's artifact. Both are re-derived from `results/jobs/` (never from each other's prose) and both are updated after **every** run:
+
+| Report | Covers | Ends with |
+|---|---|---|
+| [`docs/moca-bench-report.md`](docs/moca-bench-report.md) | every moca run on the fixed 12-task subset + the cell diagnostics | a summary: how the latest moca compares with all previous releases, the open issues, and the actions proposed for the next release |
+| [`docs/agents-bench-report.md`](docs/agents-bench-report.md) | moca vs Claude Code vs OpenCode vs Pi | the cross-agent verdict and the per-agent failure taxonomy |
+
+Update procedure (in the same commit as the run):
+
+```bash
+python3 scripts/bench_report.py runs                  # one line per job
+python3 scripts/bench_report.py summary <job>         # per-agent cost/token/speed
+python3 scripts/bench_report.py matrix <job> <job>    # task × job pass matrix
+```
+
+Add the row (moca report) or the column (agents report), re-derive the matrix, write the per-cell diagnosis, then refresh the summary section — a scoreboard that argues with its own table is worse than no scoreboard.
+
+## Status & history
+
+Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.9 · OpenCode 2.1.4 · Pi 1.4.0 · Claude Code 2.1.310 · dataset `terminal-bench@2.0` with the checked-in 12-task subset.
+
+- `make doctor` validates docker, Harbor, the adapter import (with its default pin and key variable) and credential presence; it also reads the provider's `/models` catalog and warns when `ZEN_MODEL` is not listed there — moca ≥ v0.7.10 validates the configured model against its discovered list, so a retired id must be caught before a sweep, not during one.
+- `--dry-run` passes both profiles (smoke = 4 trials; subset with `docs/tb2-subset-12.txt` = 48 trials).
+- The last four-agent in-container hello-world smoke (2026-10-16, moca v0.5.1-beta / OpenCode 2.0.30 / Pi 1.3.0 / Claude Code 2.1.301) scored 4/4 reward 1.0 with every version confirmed in `result.json`. The pins have moved since — run `make smoke` before the next sweep.
+- Historical one-off reports keep their forensic detail: [2026-10-11](docs/bench-2026-10-11-moca-claude-code-pi.md) and [2026-10-16](docs/bench-2026-10-16-moca-claude-code-pi-opencode.md). Both are superseded by the tracking reports above.
 
 ## References
 

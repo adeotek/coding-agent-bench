@@ -3,7 +3,7 @@
 # container environment (scratch state dirs, env-var credentials only).
 #
 # This validates that the API key flows the way coding-agent-bench passes it:
-#   OPENCODE_API_KEY / OPENCODE_GO_KEY  for moca, OpenCode, Pi (opencode-go)
+#   OPENCODE_API_KEY  for moca, OpenCode, Pi (opencode-go)
 #   ANTHROPIC_API_KEY | CLAUDE_CODE_OAUTH_TOKEN  for Claude Code (auto-forwarded)
 #
 # Binaries are the LOCAL ones (override with MOCA_BIN / OPENCODE_BIN / PI_BIN /
@@ -25,12 +25,12 @@ OPENCODE_BIN="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
 PI_BIN="${PI_BIN:-$(command -v pi || true)}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || true)}"
 
-if [ -z "${OPENCODE_GO_KEY:-}" ]; then
-  echo "error: OPENCODE_GO_KEY is not set (put it in $REPO/.env)" >&2
+if [ -z "${OPENCODE_API_KEY:-}" ]; then
+  echo "error: OPENCODE_API_KEY is not set (put it in $REPO/.env)" >&2
   exit 1
 fi
-# Export once so the key is inherited via the environment, never argv.
-export OPENCODE_API_KEY="$OPENCODE_GO_KEY"
+# Already exported by the `set -a` .env source above; the key reaches every
+# probe through the environment, never argv.
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/cab-probe.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -58,10 +58,10 @@ probe() { # name -- command...
 
 # --- moca -------------------------------------------------------------------
 mkdir -p "$WORK/moca/cfg" "$WORK/moca/data" "$WORK/moca/state"
-printf '{\n  "model": "%s",\n  "providers": { "opencode-go": { "apiKey": "env:OPENCODE_GO_KEY" } }\n}\n' \
+printf '{\n  "model": "%s",\n  "providers": { "opencode-go": { "apiKey": "env:OPENCODE_API_KEY" } }\n}\n' \
   "$ZEN_MODEL" >"$WORK/moca/cfg/config.jsonc"
 if [ -x "$MOCA_BIN" ]; then
-  probe moca -- env -u OPENCODE_API_KEY \
+  probe moca -- env \
     XDG_CONFIG_HOME="$WORK/moca/cfg" \
     XDG_DATA_HOME="$WORK/moca/data" \
     XDG_STATE_HOME="$WORK/moca/state" \

@@ -10,7 +10,7 @@ This integration (``BaseInstalledAgent``):
   release's ``checksums.txt``),
 * writes a minimal ``~/.config/moca/config.jsonc`` naming the model,
   referencing the API key by environment-variable indirection
-  (``env:OPENCODE_GO_KEY``) — the key itself is never written to disk — and
+  (``env:OPENCODE_API_KEY``) — the key itself is never written to disk — and
   setting ``context.maxSteps`` (the tool-batch budget before moca takes its
   tool-less wrap-up turn and exits 3 as "incomplete"),
 * runs ``moca --mode yolo -p <instruction>`` (the v0.4.0 permission-mode
@@ -20,9 +20,14 @@ This integration (``BaseInstalledAgent``):
 * backfills token/cost usage from the session JSONL
   (``populate_context_post_run``).
 
-Credentials: the key travels in Harbor's agent-phase environment
-(``harbor run ... --ae OPENCODE_GO_KEY=...``); if ``OPENCODE_GO_KEY`` is in the
-Harbor process environment, the model connection forwards it automatically.
+Credentials: one variable, ``OPENCODE_API_KEY``, for every zen agent in the
+bench. It is moca's own built-in default for the ``opencode-go`` provider
+(``config.BuiltinProviders``), and OpenCode and Pi read the same name, so the
+whole sweep can be driven by a single key in the agent phase
+(``harbor run ... --ae OPENCODE_API_KEY=...``). The providers block below
+spells the reference out rather than relying on that default: it keeps the
+adapter working for a custom ``ZEN_MODEL`` provider and makes the indirection
+visible in the generated config.
 """
 from __future__ import annotations
 
@@ -39,7 +44,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 _GITHUB_REPO = "adeotek/moca"
-_DEFAULT_VERSION = "v0.7.4"
+_DEFAULT_VERSION = "v0.7.9"
 _DEFAULT_MAX_STEPS = 100
 # The v0.4.0 permission-mode overhaul replaced the legacy --yolo flag with
 # `--mode yolo`; version bisects must speak both dialects.
@@ -47,8 +52,9 @@ _MODE_FLAG_SINCE = (0, 4)
 _OUTPUT_FILENAME = "moca.txt"
 _SESSION_FILENAME = "moca-session.jsonl"
 # Name of the agent-phase env var holding the provider API key; the generated
-# config references it through moca's `env:` indirection.
-_API_KEY_ENV = "OPENCODE_GO_KEY"
+# config references it through moca's `env:` indirection. One name for the
+# whole bench: moca's own default for opencode-go, and what OpenCode/Pi read.
+_API_KEY_ENV = "OPENCODE_API_KEY"
 
 log = logging.getLogger(__name__)
 
