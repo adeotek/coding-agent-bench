@@ -121,7 +121,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 | `ZEN_MODEL` | `opencode-go/deepseek-v4.1-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
 | `MOCA_VERSION` | `v0.7.10` | pinned moca release package |
-| `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
+| `MOCA_MAX_STEPS` | `250` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
 | `MOCA_MODE` | `yolo` | moca permission mode, rendered into the job config (v0.7.2 made `auto` moca's default) |
 | `OPENCODE_VERSION` | `2.1.4` | pinned OpenCode release (npm `@opencode/cli`) |
 | `PI_VERSION` | `1.4.0` | pinned Pi release (npm `@earendil-works/pi-coding-agent`) |
