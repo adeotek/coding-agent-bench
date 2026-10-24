@@ -182,7 +182,7 @@ class Moca(BaseInstalledAgent):
     ) -> None:
         if not self.model_name or "/" not in self.model_name:
             raise ValueError(
-                "moca requires -m provider/model (e.g. opencode-go/glm-5.3-flash)"
+                "moca requires -m provider/model (e.g. opencode-go/deepseek-v4.1-flash)"
             )
         provider = self.model_name.split("/", 1)[0]
 

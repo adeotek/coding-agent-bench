@@ -38,7 +38,7 @@ def env_int(name: str, default: int) -> int:
 
 
 def agents(_profile: str) -> list[dict]:
-    zen = env("ZEN_MODEL", "opencode-go/glm-5.3-flash")
+    zen = env("ZEN_MODEL", "opencode-go/deepseek-v4.1-flash")
     claude = env("CLAUDE_MODEL", "anthropic/claude-sonnet-5")
     entries: list[tuple[str, dict]] = [
         (

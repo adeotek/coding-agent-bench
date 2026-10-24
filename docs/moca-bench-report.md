@@ -18,7 +18,7 @@ and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 | | |
 |---|---|
 | Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories |
-| Model | `opencode-go/glm-5.3-flash` (zen key, `OPENCODE_API_KEY`) |
+| Model | `opencode-go/deepseek-v4.1-flash` (zen key, `OPENCODE_API_KEY`) since 2026-10-24 — **every row in this report ran `glm-5.3-flash`**, which was the default until then. The 2026-10-18 cell slice is the only place `deepseek-v4.1-flash` appears so far (as the second leg). |
 | moca | `--mode yolo`, `context.maxSteps = 100` (moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
 | Scoring | the task's own verifier; PASS = reward ≥ 1, FAIL = 0.0, `?` = the verifier produced **no verdict** (an exception), which is never folded into FAIL |
 
@@ -219,12 +219,19 @@ remains the efficiency point to beat ($0.0182/solved, 415 K tok/solved).
    guards are inert here (this protocol runs `--mode yolo`, and the adapter installs the
    release tarball directly instead of going through `install.sh`), and the docs move is
    layout only.
+6. **The default model changed on 2026-10-24: `glm-5.3-flash` → `deepseek-v4.1-flash`.** Every
+   number in this report predates it, so the next round starts a **new baseline** — it is not a
+   like-for-like successor to the glm rows. The only evidence for deepseek so far is the
+   2026-10-18 cell slice, where it was the steadier leg (3/3 on three cells where glm was 2/3)
+   and cheaper per token, at n=3 per cell: directional, not a verdict.
 
 **Proposed actions for the next moca version (and the rounds around it)**
 
-1. **Bench v0.7.9 before v0.7.10 lands.** One subset round isolates the five-release delta
-   from the branding/discovery delta. If a cell moves, bisect v0.7.4 → v0.7.9 on that cell
-   (the adapter speaks both CLI dialects, so old pins stay runnable).
+1. **Bench v0.7.9 before v0.7.10 lands — on the new model.** One subset round at
+   `deepseek-v4.1-flash` establishes the new baseline and isolates the five-release delta from
+   the branding/discovery delta; it is **not** comparable cell-by-cell to the glm rows. If a
+   cell moves, re-run that cell at v0.7.4 on the same model to separate release from model (the
+   adapter speaks both CLI dialects, so old pins stay runnable).
 2. **Then bench v0.7.10 when it is tagged**, and re-verify the adapter's three contracts in
    the same job: `--mode yolo`, `context.maxSteps`, and the session `usage`/`cost` shape
    (discovery adds requests, not usage fields).

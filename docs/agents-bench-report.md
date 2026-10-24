@@ -15,7 +15,7 @@ cross-agent view; the release-by-release moca history is in
 | | |
 |---|---|
 | Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) |
-| Models | moca / OpenCode / Pi: `opencode-go/glm-5.3-flash` (zen key). Claude Code: `anthropic/claude-sonnet-5` — it cannot use a zen key, by design |
+| Models | moca / OpenCode / Pi: `opencode-go/deepseek-v4.1-flash` from 2026-10-24 (`opencode-go/glm-5.3-flash` was the default before — the rows below ran glm). Claude Code: `anthropic/claude-sonnet-5` — it cannot use a zen key, by design |
 | Permissive modes | moca `--mode yolo`, OpenCode `--auto`, Claude Code `bypassPermissions` |
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
@@ -130,8 +130,10 @@ same task in 45 s the week before. `filter-js` is the other loss.
 ## What would make this report current
 
 1. **Re-run the four-agent sweep at the current pins** — moca v0.7.9, OpenCode 2.1.4, Pi 1.4.0,
-   Claude Code 2.1.310 — same 12-task subset, 1 attempt, ~2 h, ≈$1–2 zen + $0 cash. That is the
-   only way to replace the 2026-10-16 snapshot with a current ranking.
+   Claude Code 2.1.310 — same 12-task subset, 1 attempt, ~2 h, ≈$1–2 zen + $0 cash. It runs on
+   `deepseek-v4.1-flash`, so it is a **new baseline**: compare it to the glm snapshot as a
+   model change too, never as a pure agent delta. That is the only way to replace the
+   2026-10-16 snapshot with a current ranking.
 2. **Keep the moca-only rounds out of this table.** They are a release history, not a
    comparison; mixing them would silently compare different dates.
 3. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the

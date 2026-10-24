@@ -18,7 +18,7 @@ if [ -f "$REPO/.env" ]; then
   set +a
 fi
 
-ZEN_MODEL="${ZEN_MODEL:-opencode-go/glm-5.3-flash}"
+ZEN_MODEL="${ZEN_MODEL:-opencode-go/deepseek-v4.1-flash}"
 PROMPT="Reply with exactly: ok"
 MOCA_BIN="${MOCA_BIN:-$HOME/projects/moca/bin/moca}"
 OPENCODE_BIN="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"

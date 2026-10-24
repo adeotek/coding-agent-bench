@@ -91,7 +91,7 @@ zen_models_url() { # provider -> public /models URL (zen gateways only)
 }
 
 check_model_id() {
-  local model="${ZEN_MODEL:-opencode-go/glm-5.3-flash}" provider id url key body
+  local model="${ZEN_MODEL:-opencode-go/deepseek-v4.1-flash}" provider id url key body
   provider="${model%%/*}"
   id="${model#*/}"
   key="$(zen_key)"

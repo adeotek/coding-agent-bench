@@ -4,7 +4,7 @@ Compare coding agents — **[moca](https://github.com/adeotek/moca)**, **OpenCod
 
 Harbor runs every trial in a Docker container: it installs the agent CLI *inside* the task environment, hands it the task instruction, and scores the result with the task's own verifier. All four agents therefore run under identical task conditions, and the scores are comparable to the public Terminal-Bench leaderboard.
 
-- **moca, OpenCode, Pi** run the same model (`opencode-go/glm-5.3-flash` by default, via the OpenCode zen key).
+- **moca, OpenCode, Pi** run the same model (`opencode-go/deepseek-v4.1-flash` by default, via the OpenCode zen key).
 - **Claude Code** runs its own Anthropic model (it cannot use a zen key) — same tasks, same sandbox, different model. That's accepted by design.
 - Everything is pinned and re-runnable: Harbor version, moca release, dataset version, and the rendered job config are all recorded.
 
@@ -118,7 +118,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ZEN_MODEL` | `opencode-go/glm-5.3-flash` | model for moca + OpenCode + Pi |
+| `ZEN_MODEL` | `opencode-go/deepseek-v4.1-flash` | model for moca + OpenCode + Pi |
 | `CLAUDE_MODEL` | `anthropic/claude-sonnet-5` | model for Claude Code |
 | `MOCA_VERSION` | `v0.7.9` | pinned moca release package |
 | `MOCA_MAX_STEPS` | `100` | moca `context.maxSteps` (moca's own default is 40; limits are reported) |
