@@ -137,7 +137,7 @@ def cmd_runs(jobs_dir: Path, _args: list[str]) -> None:
         # so fall back to the distinct tasks actually present in the trials.
         n_tasks = job["n_tasks"] or len({r["task"] for r in rows}) or "?"
         print(
-            f"| `{job['name']}` | {agents_label(job)} | {job['config'].get('n_attempts', '?')} "
+            f"| `{job['name']}` | {agents_label(job)} | {job['config'].get('n_attempts', 1)} "
             f"| {n_tasks} | {len(rows)} | {passed} | {failed} | {unknown} "
             f"| ${spend:.4f} |"
         )
