@@ -19,6 +19,7 @@ scripts/bench_report.py re-derives the report tables from results/jobs (runs|sum
 scripts/probe-auth.sh   live 1-token credential probes (local binaries, scratch state)
 test/                   unit tests for the moca run line and the report parsers (make test)
 docs/tb2-subset-12.txt       the fixed 12-task subset every comparison uses
+docs/tb2-subset-24.txt       the comparison set: the fixed 12 + 12 cells moca cannot pass cheaply
 docs/tb2-screen.txt          the 77 never-run tasks, ordered cheap-first (make screen BATCH=N)
 docs/moca-bench-report.md    every moca run, cross-version, with the next-release actions
 docs/agents-bench-report.md  moca vs Claude Code vs OpenCode vs Pi
@@ -118,6 +119,11 @@ Read the result as a **failure corpus**, not a score: the value is in the cells 
 in how many turns it spends failing. `steps` reports turns (one model response plus its tool
 calls), tool calls, tokens/turn and proximity to `MOCA_MAX_STEPS`, so a failure can be
 classified as budget exhaustion, a tool loop, context growth, or a plain wrong answer.
+
+The 2026-10-25 sweep (batches 1–3, 30 tasks, 25/30, $0.43) is written up in
+[`docs/moca-bench-report.md`](docs/moca-bench-report.md#screening-sweep--2026-10-25-the-tasks-this-bench-had-never-run-moca-only).
+Its five failures plus seven grinding passes became the second half of
+`docs/tb2-subset-24.txt` — the set to compare releases on, because the 12-task one is saturated.
 
 ### 4. Full Terminal-Bench 2.0
 
