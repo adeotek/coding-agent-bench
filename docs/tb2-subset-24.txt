@@ -1,0 +1,41 @@
+# The 24-task comparison set: the fixed 12 (unchanged, so history stays comparable)
+# plus 12 cells chosen because moca does NOT pass them cheaply.
+#
+# Why: the 12-task set is saturated (moca 11/11 on passable cells, the one loss is a
+# broken test), so it cannot show whether a release improved anything. The added 12
+# come from the 2026-10-25 screening sweep (30 tasks run at moca v0.7.10 / deepseek /
+# 250 steps, 25/30 passed, $0.43): the five cells it failed, plus seven it passed only
+# by grinding. Expected moca score here: ~18-20/24, i.e. headroom a fix can move.
+#
+# The first 12 *tasks* are byte-identical to docs/tb2-subset-12.txt, so the two
+# instruments stay comparable on the overlap:
+#   grep -v '^#' docs/tb2-subset-24.txt | head -12  →  docs/tb2-subset-12.txt
+
+fix-git
+cobol-modernization
+kv-store-grpc
+build-cython-ext
+custom-memory-heap-crash
+db-wal-recovery
+extract-elf
+log-summary-date-ranges
+multi-source-data-merger
+nginx-request-logging
+mailman
+filter-js-from-html
+
+# --- added 2026-10-25: the five screening failures ---------------------------
+large-scale-text-editing
+configure-git-webserver
+overfull-hbox
+gcode-to-text
+dna-insert
+
+# --- added 2026-10-25: passes that cost real work (turns / tokens / seconds) --
+dna-assembly
+sanitize-git-repo
+crack-7z-hash
+password-recovery
+circuit-fibsqrt
+git-multibranch
+break-filter-js-from-html

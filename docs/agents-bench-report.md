@@ -106,6 +106,24 @@ What that changes:
 but time changed. Two runs is two samples: enough to see that moca and Pi are stable, not enough
 to put a confidence interval on any agent's true rate.
 
+### The model change was worth more than the release — measured, not assumed
+
+The 10-25 sweep switched the three zen agents from `glm-5.3-flash` to `deepseek-v4.1-flash`
+while every pin also moved, which is why its table is labelled a new baseline. A moca-only leg
+isolates the model at fixed release and budget (v0.7.10, 250 steps, same 12 tasks):
+
+| moca leg | model | score | $/solved |
+|---|---|---|---|
+| v0.7.4 / 100 steps | glm-5.3-flash | 8/12 | $0.0524 |
+| v0.7.10 / 250 steps | glm-5.3-flash | 9/12 | $0.0476 |
+| v0.7.10 / 250 steps | deepseek-v4.1-flash | **11/12** | **$0.0166–0.0195** |
+
+Release + budget together are worth +1 net (three cells convert, two regress); the model is
+worth +2 and recovers exactly the two the extra budget broke. Read the cross-agent table with
+that in mind: the jump from the 10-16 rows is mostly a **model** change, not an agent change —
+which is also the fairest reading of OpenCode's and Pi's gains. Full decomposition and caveats
+in [`docs/moca-bench-report.md`](moca-bench-report.md#attribution--which-knob-earned-the-three-cells).
+
 ## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 
 | agent | version | model | solved | rate (95 % CI) | cost | $/solved | tok/solved | median agent run |

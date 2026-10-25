@@ -1,0 +1,106 @@
+# Screening list for terminal-bench 2.0 — the 77 tasks this bench has never run.
+#
+# The bench's 12-task subset (docs/tb2-subset-12.txt) is saturated: three of four
+# agents pass 11/12 and the only loss is task-side. Hardening moca needs failures,
+# and this is where they are. Order is deliberate — cheap/informative first, heavy
+# images last — so a screen can stop at any line and still have learned something.
+#
+# Run one batch (10 at a time, then `make prune` — task images are GB-sized):
+#
+#   export AGENTS=moca N_ATTEMPTS=1
+#   export TASK_NAMES="$(grep -v '^#' docs/tb2-screen.txt | grep -v '^$' | sed -n '11,20p' | paste -sd,)"
+#   ./scripts/bench.sh run subset -y --max-retries 1
+#
+# Then read it back with: scripts/bench_report.py steps <job>
+#
+# Batch 1 (the first 10 tasks) is checked in as docs/tb2-screen-batch-1.txt.
+# Excluded: hello-world (the smoke profile's task) and the 12 already run.
+
+# --- tier 1: the filter-js sibling, git/repo forensics, small program repair ----
+break-filter-js-from-html
+git-leak-recovery
+sanitize-git-repo
+git-multibranch
+fix-code-vulnerability
+vulnerable-secret
+openssl-selfsigned-cert
+configure-git-webserver
+
+# --- tier 2: text/log/data wrangling, the shape most tasks take ---------------
+cancel-async-tasks
+large-scale-text-editing
+regex-log
+overfull-hbox
+gcode-to-text
+sparql-university
+sqlite-db-truncate
+sqlite-with-gcov
+query-optimize
+pypi-server
+headless-terminal
+distribution-search
+constraints-scheduling
+merge-diff-arc-agi-task
+
+# --- tier 3: crypto / math / algorithms --------------------------------------
+password-recovery
+crack-7z-hash
+feal-differential-cryptanalysis
+feal-linear-cryptanalysis
+circuit-fibsqrt
+prove-plus-comm
+dna-assembly
+dna-insert
+protein-assembly
+adaptive-rejection-sampler
+mcmc-sampling-stan
+rstan-to-pystan
+raman-fitting
+largest-eigenval
+portfolio-optimization
+winning-avg-corewars
+regex-chess
+chess-best-move
+polyglot-c-py
+polyglot-rust-c
+schemelike-metacircular-eval
+
+# --- tier 4: build systems, compilers, reverse engineering -------------------
+compile-compcert
+build-pmars
+build-pov-ray
+make-mips-interpreter
+make-doom-for-mips
+path-tracing
+path-tracing-reverse
+gpt2-codegolf
+write-compressor
+fix-ocaml-gc
+tune-mjcf
+model-extraction-relu-logits
+code-from-image
+
+# --- tier 5: ML / data pipelines (heavy images — batch small, prune between) --
+caffe-cifar-10
+train-fasttext
+hf-model-inference
+mteb-leaderboard
+mteb-retrieve
+count-dataset-tokens
+reshard-c4-data
+torch-pipeline-parallelism
+torch-tensor-parallelism
+llm-inference-batching-scheduler
+pytorch-model-cli
+pytorch-model-recovery
+sam-cell-seg
+
+# --- tier 6: environment / OS-level ------------------------------------------
+install-windows-3.11
+qemu-startup
+qemu-alpine-ssh
+extract-moves-from-video
+video-processing
+bn-fit-modify
+financial-document-processor
+modernize-scientific-stack

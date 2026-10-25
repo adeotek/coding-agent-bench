@@ -1,0 +1,25 @@
+# Batch 1 of the moca screening sweep — 10 tasks, ~$0.20 of zen spend, no Claude.
+#
+# Purpose: find cells where moca actually fails. The 12-task subset cannot answer
+# that any more (11/12, only loss task-side), and hardening needs a failure corpus.
+# First entry is the filter-js sibling — it decides whether that family is broken
+# or only filter-js-from-html's byte-exact test is.
+#
+#   export AGENTS=moca N_ATTEMPTS=1
+#   export TASK_NAMES="$(grep -v '^#' docs/tb2-screen-batch-1.txt | grep -v '^$' | paste -sd,)"
+#   ./scripts/bench.sh run subset -y --max-retries 1
+#   make prune          # task images are GB-sized
+#   scripts/bench_report.py steps cab-subset-<stamp>
+#
+# The rest of the 77 unrun tasks live in docs/tb2-screen.txt, ordered by tier.
+
+break-filter-js-from-html
+git-leak-recovery
+sanitize-git-repo
+git-multibranch
+fix-code-vulnerability
+vulnerable-secret
+openssl-selfsigned-cert
+configure-git-webserver
+cancel-async-tasks
+large-scale-text-editing
