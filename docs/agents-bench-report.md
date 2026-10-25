@@ -115,19 +115,18 @@ isolates the model at fixed release and budget (v0.7.10, 250 steps, same 12 task
 | moca leg | model | steps | score |
 |---|---|---|---|
 | v0.7.4 | glm-5.3-flash | 100 | 8/12 |
-| v0.7.4 | glm-5.3-flash | 250 | 7/12 |
+| v0.7.4 | glm-5.3-flash | 250 | 7/12 → **10/12** when its four cells were repeated 3× |
 | v0.7.10 | glm-5.3-flash | 250 | 9/12 |
-| v0.7.10 | deepseek-v4.1-flash | 250 | **11/12** |
+| v0.7.10 | deepseek-v4.1-flash | 250 | **11/12** (twice, identical cells) |
 
-Three one-variable hops: **the step budget is −1 on its own** (it converts the two cells short of
-room and breaks three that passed at 100), **the release is +2**, and **the model is +2** — the
-+2 model delta costs one-fifth as much per solved task as glm.
-
-Read the cross-agent table with that in mind: the jump from the 10-16 rows is mostly a **model**
-change, not an agent change — which is also the fairest reading of OpenCode's and Pi's gains. And
-beware the lesson in the budget row: a knob that helps one cell can cost another, so a net score
-never credits a knob. Full decomposition and caveats in
-[`docs/moca-bench-report.md`](moca-bench-report.md#attribution--which-knob-earned-the-three-cells).
+The single-attempt legs **cannot** split the +3: the 250-step glm leg lost two cells that repeated
+3/3 and 3/3 at its own settings, i.e. a leg moves ±2–3 cells on a twelve-cell set. What survives
+is the endpoint (8/12 → 11/12), the model's steadiness (two identical runs) and its economics
+(one-fifth the cost per solved task), and the budget's tail-cost effect (one 246-turn, $0.43
+attempt). Read the cross-agent table with that in mind: the jump from the 10-16 rows is mostly a
+**model** change, not an agent change — which is also the fairest reading of OpenCode's and Pi's
+gains. Full detail, including the retraction, in
+[`docs/moca-bench-report.md`](moca-bench-report.md#attribution--what-the-legs-support-and-what-they-do-not).
 
 ## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 

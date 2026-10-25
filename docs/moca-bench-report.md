@@ -163,6 +163,7 @@ models are used where the question is "is this the model or the agent?".
 | 10-22 | v0.7.4 | db-wal × 3 | **3/3** at 7–14 requests, $0.0176 | `…155632-1217193` | $0.018 |
 | 10-22 | v0.7.4 | custom-memory × 3 @ 150 | **2/3** — passes at 16 and 36 requests; the third burned all 151 | `…155652-1219888` | $0.337 |
 | 10-25 | v0.7.10 | mailman, custom-memory, cobol, filter-js × 3 @ 250 | **mailman 3/3**, **custom-memory 3/3**, **cobol 3/3**; filter-js **0/3 scored** (2 × verifier timeout, 1 fail) | `…033114-1747413` | $0.370 |
+| 10-25 | v0.7.4 | build-cython, extract-elf, log-summary, custom-memory × 3 @ 250, glm | **extract-elf 3/3**, **log-summary 3/3**, build-cython **2/3**, custom-memory **2/3** (one attempt burned 246 turns / 12.8 M tokens / $0.4348 and still passed) | `…165250-3205787` | $0.821 |
 
 What the cell runs settled, and the rules that came out of them:
 
@@ -182,6 +183,15 @@ What the cell runs settled, and the rules that came out of them:
   slice (3/3 on three cells where glm was 2/3). A second serving family is a free validity
   check on any single-cell claim.
 - **A cell run is cheap.** The 2026-10-22 slice cost $0.354, 89 % of it the one capped flail.
+
+- **A one-attempt cell claim is worth nothing until it repeats.** Leg D (v0.7.4 at 250 with glm)
+  scored 7/12 and lost `extract-elf` and `log-summary-date-ranges`, which read as "the budget lets
+  glm wander into cells that passed at 100". Re-running D's four cells at D's exact settings:
+  **10/12**, with `extract-elf` 3/3 in 9–10 turns and `log-summary` 3/3 in 3–6. D was a bad draw;
+  the claim was written into this report and is now retracted.
+- **What the budget does buy is tail cost.** One `custom-memory` attempt at 250 steps spent
+  **246 turns, 12.8 M tokens and $0.4348** — 63× the cheap attempt — and still passed. Extra room
+  does not make glm more accurate; it makes a non-stopping model more expensive.
 
 - **The three moved cells are reproducible at the new settings, 3/3 each.** mailman (0-for-5
   in rounds), custom-memory (2/3 at 150, failed at 100) and cobol (a 900 s cap loss at v0.6.3)
@@ -209,11 +219,11 @@ What the cell runs settled, and the rules that came out of them:
 - **Token floors.** Timeouts report 0 tokens (v0.6.2). Never headline a timeout-heavy round
   as the cheaper one.
 
-## Attribution — which knob earned the three cells
+## Attribution — what the legs support, and what they do not
 
 The 10-25 round moved three things at once (release v0.7.4 → v0.7.10, model `glm` → `deepseek`,
-budget 100 → 250), so for two rounds the reports credited none of them. Two one-variable legs
-(v0.7.10 at glm⁴, v0.7.4 at 250⁵) turn the single confounded hop into three measurable deltas:
+budget 100 → 250). Two one-variable legs split the hop into three, and the first reading of them
+was wrong — the cell run caught it:
 
 | leg | release | model | steps | score | $/solved |
 |---|---|---|---|---|---|
@@ -222,37 +232,39 @@ budget 100 → 250), so for two rounds the reports credited none of them. Two on
 | **C** 10-25 (`…20261025-144052-3000856`) | v0.7.10 | glm | 250 | 9/12 | $0.0476 |
 | **B** 10-25 (both deepseek runs) | v0.7.10 | deepseek | 250 | 11/12 | $0.0166–0.0195 |
 
-**A → D — the budget alone (v0.7.4, glm): −1.** Raising 100 → 250 converts the two cells that
-were genuinely short of room (`custom-memory-heap-crash`, `db-wal-recovery`) and *breaks three
-that passed at 100* (`build-cython-ext`, `extract-elf`, `log-summary-date-ranges`). Nothing is
-timing out; glm simply keeps working where it used to stop. On this subset the step budget is
-**not a win by itself** — it is a lever that pays only for a model that stops.
+**The retraction.** Leg D lost `extract-elf` and `log-summary-date-ranges`, so the obvious story
+was "250 steps let glm wander into cells that passed at 100". Re-running D's four cells at D's
+exact settings, three attempts each:
 
-**D → C — the release (v0.7.4 → v0.7.10, glm, 250): +2.** The three cells the budget broke come
-back except `build-cython-ext`, `mailman` finally converts, and `cobol-modernization` regresses
-into a 900 s timeout after 169 turns (so its token total there is a floor).
+| cell | leg D (1 attempt) | 3 attempts at D's settings |
+|---|---|---|
+| `extract-elf` | ❌ | **3/3** (9–10 turns) |
+| `log-summary-date-ranges` | ❌ | **3/3** (3–6 turns) |
+| `build-cython-ext` | ❌ | **2/3** |
+| `custom-memory-heap-crash` | ✅ | **2/3** |
 
-**C → B — the model (glm → deepseek, v0.7.10, 250): +2.** It recovers exactly the two cells the
-release and the budget left failing (`build-cython-ext`, `cobol-modernization`), nothing
-regresses, and the run costs one-fifth as much per solved task ($0.0166 vs $0.0476).
+Ten of twelve, two of them on cells that finish in single-digit turns. D's 7/12 was a low draw.
+The per-knob split that this section carried for one round — "budget −1, release +2, model +2" —
+is **withdrawn**: at one attempt per leg, a leg moves ±2–3 cells on a twelve-cell set, and both of
+D's "regressions" dissolved the moment they were repeated. The arithmetic (8 → 7 → 9 → 11)
+still adds up; it just does not mean what it looked like.
 
-The arithmetic closes: **8 → 7 → 9 → 11**, i.e. **+3 = −1 (budget) +2 (release) +2 (model)**.
+**What the legs do support:**
 
-The two things this settles:
+- **The model's economics are the one unambiguous result.** deepseek holds 11/12 twice with an
+  identical cell pattern at $0.0166–$0.0195/solved; glm sits at 9/12 and $0.0476, and its losses
+  in these legs include cells a competent run finishes in single-digit turns. If the release and
+  budget explain any of the gain, the model still explains the cheapness and the steadiness.
+- **The budget's visible effect is on the tail, not the mean.** The 3× cell run's worst attempt
+  took **246 turns, 12.8 M tokens and $0.4348** for one pass at `custom-memory` — 63× the cheap
+  attempt. Extra room is not accuracy for a model that keeps working; it is invoice.
+- **The endpoint is solid even though the middle is soft.** 8/12 at v0.7.4/glm/100 versus 11/12
+  at v0.7.10/deepseek/250, measured twice at the second endpoint and identical both times.
 
-- **"More steps" never was the improvement.** The 250 change is net negative on its own; what
-  actually bought the cells was the release and the serving model. The earlier story — "250
-  converted the cells 100 could not" — was an artefact of moving the budget and the model
-  together: at 250 with glm, `mailman` still failed (67 turns), and it only converts once the
-  release changes.
-- **The budget is still the right setting, for the reason nobody claimed.** It costs nothing per
-  solved task at deepseek and buys the room `custom-memory` and `db-wal` need; it is the glm
-  pairing that turns extra room into extra wandering.
-
-Caveats, stated because they bound the claim: one attempt per leg, and eight cells changed
-verdict across the three hops on a twelve-task set, so the *net* arithmetic is solid while any
-single cell's attribution is soft; the cell diagnostics tested the moved cells at 250/deepseek
-only; and `cobol` in leg C is a timeout, so its token total is a floor.
+**What it would take to split the knobs for real:** three attempts per leg — 2 legs × 36 trials,
+≈ $1.6 and ~4 h at glm prices — and the legs must hold the third knob fixed. Until someone spends
+that, this report carries the total and the model's economics, and credits the budget with
+nothing.
 
 ## Screening sweep — 2026-10-25, the tasks this bench had never run (moca only)
 
@@ -340,16 +352,19 @@ did not explode it (slowest trial 7.9 min, well inside the 900 s cap).
 on variance and on a search-space gap, and proposed no budget change. At 250 steps with
 deepseek both cells are 3/3, and mailman — the cell called "a ~50–70 % model-behaviour cell"
 and later "has not passed in a round since v0.3.0" — is 3/3 too. The old read was correct for
-its own settings and wrong as a general claim — but the general claim is not "more budget": the
-four-leg decomposition below shows the budget is **net −1 on its own** at glm, and the cells came
-from the release (+2) and the serving model (+2).
+its own settings and wrong as a general claim — but the general claim is not "more budget"
+ either: the one-variable legs could not isolate the budget at all (its −1 reading was a bad
+draw, see the attribution section), so what the round actually bought is the release plus the
+ serving model, with the budget's measurable effect on cost rather than accuracy.
 
 **Potential issues, in priority order**
 
-1. **Attribution is closed.** Three one-variable legs decompose the +3 as **−1 budget,
-   +2 release, +2 model**; the budget is net negative on its own and only pays with a model that
-   stops. See the attribution section — no further leg is needed, and nothing in this report
-   should credit the step-budget change again.
+1. **The per-knob split was retracted; the endpoint stands.** One attempt per leg moves ±2–3
+   cells, and a 3× cell run at leg D's settings scored 10/12 where D scored 4/12 on those cells,
+   so "budget −1, release +2, model +2" is withdrawn (see the attribution section). What is
+   measured: 8/12 → 11/12, the second endpoint twice and identical; deepseek is both steadier and
+   ~2.5× cheaper per solved task; the budget's effect is tail cost. A real split costs ~$1.6 and
+   four hours of 3-attempt legs.
 2. **`filter-js-from-html` is a broken cell, not a hard one.** 0/17 across four agents and two
    models; today, two of three attempts never produced a verdict because the verifier hung, and
    the scored one failed a byte-exact comparison against parser re-serialisation. Carrying it in
