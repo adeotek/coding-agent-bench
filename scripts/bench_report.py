@@ -133,9 +133,12 @@ def cmd_runs(jobs_dir: Path, _args: list[str]) -> None:
         failed = sum(1 for r in rows if verdict(r) == "F")
         unknown = sum(1 for r in rows if verdict(r) == "?")
         spend = sum(r["cost_usd"] for r in rows)
+        # Older job configs record `n_tasks` instead of the explicit `task_names`,
+        # so fall back to the distinct tasks actually present in the trials.
+        n_tasks = job["n_tasks"] or len({r["task"] for r in rows}) or "?"
         print(
             f"| `{job['name']}` | {agents_label(job)} | {job['config'].get('n_attempts', '?')} "
-            f"| {job['n_tasks'] or '?'} | {len(rows)} | {passed} | {failed} | {unknown} "
+            f"| {n_tasks} | {len(rows)} | {passed} | {failed} | {unknown} "
             f"| ${spend:.4f} |"
         )
 
