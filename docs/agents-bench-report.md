@@ -112,17 +112,22 @@ The 10-25 sweep switched the three zen agents from `glm-5.3-flash` to `deepseek-
 while every pin also moved, which is why its table is labelled a new baseline. A moca-only leg
 isolates the model at fixed release and budget (v0.7.10, 250 steps, same 12 tasks):
 
-| moca leg | model | score | $/solved |
+| moca leg | model | steps | score |
 |---|---|---|---|
-| v0.7.4 / 100 steps | glm-5.3-flash | 8/12 | $0.0524 |
-| v0.7.10 / 250 steps | glm-5.3-flash | 9/12 | $0.0476 |
-| v0.7.10 / 250 steps | deepseek-v4.1-flash | **11/12** | **$0.0166–0.0195** |
+| v0.7.4 | glm-5.3-flash | 100 | 8/12 |
+| v0.7.4 | glm-5.3-flash | 250 | 7/12 |
+| v0.7.10 | glm-5.3-flash | 250 | 9/12 |
+| v0.7.10 | deepseek-v4.1-flash | 250 | **11/12** |
 
-Release + budget together are worth +1 net (three cells convert, two regress); the model is
-worth +2 and recovers exactly the two the extra budget broke. Read the cross-agent table with
-that in mind: the jump from the 10-16 rows is mostly a **model** change, not an agent change —
-which is also the fairest reading of OpenCode's and Pi's gains. Full decomposition and caveats
-in [`docs/moca-bench-report.md`](moca-bench-report.md#attribution--which-knob-earned-the-three-cells).
+Three one-variable hops: **the step budget is −1 on its own** (it converts the two cells short of
+room and breaks three that passed at 100), **the release is +2**, and **the model is +2** — the
++2 model delta costs one-fifth as much per solved task as glm.
+
+Read the cross-agent table with that in mind: the jump from the 10-16 rows is mostly a **model**
+change, not an agent change — which is also the fairest reading of OpenCode's and Pi's gains. And
+beware the lesson in the budget row: a knob that helps one cell can cost another, so a net score
+never credits a knob. Full decomposition and caveats in
+[`docs/moca-bench-report.md`](moca-bench-report.md#attribution--which-knob-earned-the-three-cells).
 
 ## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 

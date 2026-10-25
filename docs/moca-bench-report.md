@@ -19,7 +19,7 @@ and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 |---|---|
 | Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories |
 | Model | `opencode-go/deepseek-v4.1-flash` (zen key, `OPENCODE_API_KEY`) for the two v0.7.10 rows of 10-25; **every earlier row ran `glm-5.3-flash`**, which was the default until then. The 10-25 glm leg⁴ is the controlled cross-check at the same release and budget, and the 10-18 cell slice used deepseek as its second leg. |
-| moca | `--mode yolo`, `context.maxSteps = 250` from the v0.7.10 round (**100 for every row before it**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
+| moca | `--mode yolo`, `context.maxSteps = 250` for the v0.7.10 rows and both one-variable legs of 10-25 (**100 for every row before those**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
 | Scoring | the task's own verifier; PASS = reward ≥ 1, FAIL = 0.0, `?` = the verifier produced **no verdict** (an exception), which is never folded into FAIL |
 
 Reproduce one round:
@@ -53,6 +53,7 @@ Two rules this report follows, learned the hard way:
 | v0.7.10² | 10-25 | `…20261025-014057-1313816` | **11/12** | $0.2142 | 8.42 M | $0.0195 | 770 K | 7.9 min | — |
 | v0.7.10³ | 10-25 | `…20261025-100949-2263993` | **11/12** | $0.1826 | 8.54 M | **$0.0166** | 780 K | 8.8 min | — |
 | v0.7.10⁴ | 10-25 | `…20261025-144052-3000856` | 9/12 | $0.4287 | 9.05 M | $0.0476 | 1.01 M | 10.1 min | 1 × a-timeout, 1 × v-timeout |
+| v0.7.4⁵ | 10-25 | `…20261025-154917-3107095` | 7/12 | $0.2039 | 3.87 M | $0.0291 | 0.55 M | 10.7 min | — |
 
 ¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its
 session, so that trial reports 0 tokens. Treat v0.6.2's figures as a floor.
@@ -68,6 +69,8 @@ cheapest round on record. Details in the reproducibility paragraph below.
 instead of deepseek: the arm that separates the model from the release and the budget.
 `cobol-modernization` hit the 900 s agent cap after 169 turns (its token total is therefore
 a floor); `filter-js` produced no verdict again. See the attribution section.
+⁵ **The budget leg, 2026-10-25 15:49** — v0.7.4 at 250 steps, still glm: the last arm of the
+decomposition (budget alone, release and model held fixed). See the attribution section.
 
 **v0.6.5 was not benched** — docs-only by construction (no agent-loop change), so it carries
 no row. That makes the current pin (v0.7.10) a **six-release jump** from the last
@@ -209,36 +212,47 @@ What the cell runs settled, and the rules that came out of them:
 ## Attribution — which knob earned the three cells
 
 The 10-25 round moved three things at once (release v0.7.4 → v0.7.10, model `glm` → `deepseek`,
-budget 100 → 250), so the reports credited none of them. The glm leg⁴ supplies the missing arm:
+budget 100 → 250), so for two rounds the reports credited none of them. Two one-variable legs
+(v0.7.10 at glm⁴, v0.7.4 at 250⁵) turn the single confounded hop into three measurable deltas:
 
 | leg | release | model | steps | score | $/solved |
 |---|---|---|---|---|---|
 | **A** 10-22 (`…20261022-143907-1093976`, pruned) | v0.7.4 | glm | 100 | 8/12 | $0.0524 |
+| **D** 10-25 (`…20261025-154917-3107095`) | v0.7.4 | glm | 250 | 7/12 | $0.0291 |
 | **C** 10-25 (`…20261025-144052-3000856`) | v0.7.10 | glm | 250 | 9/12 | $0.0476 |
 | **B** 10-25 (both deepseek runs) | v0.7.10 | deepseek | 250 | 11/12 | $0.0166–0.0195 |
 
-**A → C (release + budget, model fixed): +1 net — and the net hides movement both ways.**
-The three cells A was stuck on convert — `custom-memory-heap-crash`, `db-wal-recovery`,
-`mailman` — while two cells A passed regress: `cobol-modernization` (900 s agent timeout after
-169 turns) and `build-cython-ext` (wrong answer after 68 turns). More room helped the cells
-that needed it and hurt the ones where glm keeps going.
+**A → D — the budget alone (v0.7.4, glm): −1.** Raising 100 → 250 converts the two cells that
+were genuinely short of room (`custom-memory-heap-crash`, `db-wal-recovery`) and *breaks three
+that passed at 100* (`build-cython-ext`, `extract-elf`, `log-summary-date-ranges`). Nothing is
+timing out; glm simply keeps working where it used to stop. On this subset the step budget is
+**not a win by itself** — it is a lever that pays only for a model that stops.
 
-**C → B (model only): +2, and it recovers exactly the two cells the budget broke.** Nothing
+**D → C — the release (v0.7.4 → v0.7.10, glm, 250): +2.** The three cells the budget broke come
+back except `build-cython-ext`, `mailman` finally converts, and `cobol-modernization` regresses
+into a 900 s timeout after 169 turns (so its token total there is a floor).
+
+**C → B — the model (glm → deepseek, v0.7.10, 250): +2.** It recovers exactly the two cells the
+release and the budget left failing (`build-cython-ext`, `cobol-modernization`), nothing
 regresses, and the run costs one-fifth as much per solved task ($0.0166 vs $0.0476).
 
-So the +3 over v0.7.4 decomposes as **two cells from the model and one net from release +
-budget**. The mechanism is not "more steps is better" but "more steps is better for a model
-that stops" — which is why the step-budget change looked inert in the 10-18 slice and passed
-for useful at 250.
+The arithmetic closes: **8 → 7 → 9 → 11**, i.e. **+3 = −1 (budget) +2 (release) +2 (model)**.
 
-**What is still bundled:** release and budget move together in A → C. One more leg separates
-them — v0.7.4 at 250 steps (the adapter speaks the old dialect) or v0.7.10 at 100 — ~$0.2 and
-40 minutes. Until it runs, the honest name for that +1 is "release + budget, net", not
-"release".
+The two things this settles:
 
-Caveats, stated because they bound the claim: one attempt per leg; the cell diagnostics tested
-the moved cells at 250/deepseek, not at glm/250 or at 100; and `cobol` in leg C is a timeout,
-so its token total is a floor.
+- **"More steps" never was the improvement.** The 250 change is net negative on its own; what
+  actually bought the cells was the release and the serving model. The earlier story — "250
+  converted the cells 100 could not" — was an artefact of moving the budget and the model
+  together: at 250 with glm, `mailman` still failed (67 turns), and it only converts once the
+  release changes.
+- **The budget is still the right setting, for the reason nobody claimed.** It costs nothing per
+  solved task at deepseek and buys the room `custom-memory` and `db-wal` need; it is the glm
+  pairing that turns extra room into extra wandering.
+
+Caveats, stated because they bound the claim: one attempt per leg, and eight cells changed
+verdict across the three hops on a twelve-task set, so the *net* arithmetic is solid while any
+single cell's attribution is soft; the cell diagnostics tested the moved cells at 250/deepseek
+only; and `cobol` in leg C is a timeout, so its token total is a floor.
 
 ## Screening sweep — 2026-10-25, the tasks this bench had never run (moca only)
 
@@ -326,15 +340,16 @@ did not explode it (slowest trial 7.9 min, well inside the 900 s cap).
 on variance and on a search-space gap, and proposed no budget change. At 250 steps with
 deepseek both cells are 3/3, and mailman — the cell called "a ~50–70 % model-behaviour cell"
 and later "has not passed in a round since v0.3.0" — is 3/3 too. The old read was correct for
-its own settings and wrong as a general claim: the budget and the serving model both bind, and
-neither was varied alone before.
+its own settings and wrong as a general claim — but the general claim is not "more budget": the
+four-leg decomposition below shows the budget is **net −1 on its own** at glm, and the cells came
+from the release (+2) and the serving model (+2).
 
 **Potential issues, in priority order**
 
-1. **Attribution is now decomposed, with one seam left.** The glm leg puts two of the three
-   cells on the model and one on release + budget (net, with two cells moving each way), see the
-   attribution section. The seam is release versus budget inside that +1: one more leg —
-   v0.7.4 at 250, or v0.7.10 at 100 — closes it for ~$0.2 and 40 minutes.
+1. **Attribution is closed.** Three one-variable legs decompose the +3 as **−1 budget,
+   +2 release, +2 model**; the budget is net negative on its own and only pays with a model that
+   stops. See the attribution section — no further leg is needed, and nothing in this report
+   should credit the step-budget change again.
 2. **`filter-js-from-html` is a broken cell, not a hard one.** 0/17 across four agents and two
    models; today, two of three attempts never produced a verdict because the verifier hung, and
    the scored one failed a byte-exact comparison against parser re-serialisation. Carrying it in
