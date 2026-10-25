@@ -163,6 +163,7 @@ models are used where the question is "is this the model or the agent?".
 | 10-22 | v0.7.4 | db-wal × 3 | **3/3** at 7–14 requests, $0.0176 | `…155632-1217193` | $0.018 |
 | 10-22 | v0.7.4 | custom-memory × 3 @ 150 | **2/3** — passes at 16 and 36 requests; the third burned all 151 | `…155652-1219888` | $0.337 |
 | 10-25 | v0.7.10 | mailman, custom-memory, cobol, filter-js × 3 @ 250 | **mailman 3/3**, **custom-memory 3/3**, **cobol 3/3**; filter-js **0/3 scored** (2 × verifier timeout, 1 fail) | `…033114-1747413` | $0.370 |
+| 10-25 | v0.7.10 | the 24-set's five losses + `log-summary` canary × 3 @ 250 | **configure-git 0/3**, **dna-assembly 0/3**, **large-scale 1/3**, **sanitize-git 1/3**, **overfull-hbox 3/3**; canary 3/3 | `…221348-209862` | $0.263 |
 | 10-25 | v0.7.4 | build-cython, extract-elf, log-summary, custom-memory × 3 @ 250, glm | **extract-elf 3/3**, **log-summary 3/3**, build-cython **2/3**, custom-memory **2/3** (one attempt burned 246 turns / 12.8 M tokens / $0.4348 and still passed) | `…165250-3205787` | $0.821 |
 
 What the cell runs settled, and the rules that came out of them:
@@ -356,15 +357,36 @@ draw — and the two that did not reproduce (`gcode-to-text` passed in 71 turns,
 are now known to be flaky cells rather than capability walls. The screening sweep's own
 `gcode-to-text` verdict is therefore withdrawn as a capability claim.
 
-**The hardening backlog, in the order a fix would pay:**
+**The five losses, re-measured — four of them are not stable defects.** A cell run at these
+exact settings (3 attempts each, plus a `log-summary` canary that passed 3/3) turns the two-sample
+guesses into rates, and it rewrites the backlog:
 
-1. **Literal-constraint compliance** (`large-scale-text-editing`, `overfull-hbox`): moca meets the
-   functional goal and misses a stated rule it could have re-read. Two cells, one class.
-2. **Verification theatre** (`configure-git-webserver`): the 404 survives a second run, and moca
-   still closes with a success claim. Claude is the only agent that proves the URL.
-3. **Premature finish** (`sanitize-git-repo`, 12 turns, 54 s): moca spends a fifth of the turns
-   OpenCode spends and fails on both secret-removal assertions — the signature of declaring done.
-4. **Capability** (`dna-assembly`): only Pi solves it; not a prompt defect.
+| cell | 24-set + screen | cell run | combined | verdict |
+|---|---|---|---|---|
+| `configure-git-webserver` | 0/2 | **0/3** | **0/5** | **structural** — the 404 is not luck |
+| `dna-assembly` | 1/2 | **0/3** | **1/5** | **structural** — and only Pi solves it |
+| `large-scale-text-editing` | 0/2 | 1/3 | 1/5 | flaky at ~20 % — sometimes writes `:wq` |
+| `sanitize-git-repo` | 1/2 | 1/3 | 2/5 | flaky at ~40 %, and the fast failures suggest an early stop |
+| `overfull-hbox` | 0/2 | **3/3** | 3/5 | **mostly passes** — the two failures were variance |
+
+So the "literal-constraint defect class" this report proposed one round ago does not survive: it
+was built from `large-scale` (1/5) and `overfull` (3/5), which are the two *least* stable cells in
+the group. The honest backlog is much shorter:
+
+1. **`configure-git-webserver` — 0/5, structural.** The server never answers the URL the verifier
+   fetches, and moca still closes with a success claim. One cell, one clean fix target, and the
+   only competitor that passes it is Claude Code.
+2. **`dna-assembly` — 1/5, structural.** A capability/strategy gap (only Pi solves it); not a
+   prompt-tightening problem.
+3. **`sanitize-git-repo` (2/5) and `large-scale-text-editing` (1/5) — flaky.** Both pass
+   sometimes, so a fix cannot be validated from a single trial; they need 3-attempt cell runs on
+   both sides of any change.
+4. **`overfull-hbox` — 3/5, no fix warranted.** Record it as variance and stop writing about it.
+
+**What that does to the ranking.** With `overfull` passing 3/3, `large-scale` 1/5 and
+`sanitize-git` 2/5, moca's expected 24-task score is closer to **19/24** than the 18/24 measured —
+inside the pack with Pi and OpenCode (20/24 each), not clearly behind it. The single-run ordering
+is softer than its confidence intervals already suggested.
 
 ## Summary — where v0.7.10 stands, against every earlier release
 
@@ -380,10 +402,11 @@ budget (100 → 250). The cell run above rules out variance on the cells that mo
 so the open question is *which* change earned the cells, not whether they were won.
 
 **The 12-task subset is spent as an instrument, and the 24-task set shows why it mattered.**
-moca still scores 11/12 on the old set and drops to 18/24 on the new one — fourth of four,
-two points behind Pi and OpenCode and three behind Claude Code, while remaining 22× cheaper
-per solved task. The backlog is the five cells in the section above; three of them are
-finish-line defects, which is where the next moca release should be pointed.
+moca still scores 11/12 on the old set and 18/24 on the new one, and the cell run shows that
+number undersells it: four of the five losses are flaky, so the expected rate is ~19/24 —
+level with Pi and OpenCode rather than behind them, and 22× cheaper per solved task. Only
+`configure-git-webserver` (0/5) and `dna-assembly` (1/5) are real defects, and the first is
+the one to fix.
 
 **Reproducibility.** The round was repeated end-to-end at identical settings (`…100949-2263993`,
 2 h 09 m): **11/12 again**, the same cell lost, **22/24** across the pair. 45 of the 48 cells

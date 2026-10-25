@@ -44,14 +44,19 @@ two earlier sweeps of that set. On the twelve added cells it is Claude 10, OpenC
 **moca loses six cells, and a competitor passes every one of them.** No cell is moca-only, and
 `filter-js-from-html` is the only cell all four fail:
 
-| moca's loss | failing test | who passes it |
-|---|---|---|
-| `configure-git-webserver` | `test_hello_html_exists` (HTTP 404) | Claude Code only |
-| `dna-assembly` | `test_primers` | Pi only |
-| `large-scale-text-editing` | `test_apply_macros_well_formed` (script ends `wq`, not `:wq`) | OpenCode, Claude |
-| `overfull-hbox` | `test_input_file_matches` (word outside `synonyms.txt`) | Pi, Claude |
-| `sanitize-git-repo` | `test_removal_of_secret_information` | OpenCode, Claude |
-| `filter-js-from-html` | both (task-side, byte-exact) | nobody, in any run |
+| moca's loss | failing test | who passes it | moca over 3 more attempts |
+|---|---|---|---|
+| `configure-git-webserver` | `test_hello_html_exists` (HTTP 404) | Claude Code only | **0/3** (0/5 total) — structural |
+| `dna-assembly` | `test_primers` | Pi only | **0/3** (1/5) — structural |
+| `large-scale-text-editing` | `test_apply_macros_well_formed` (`wq` vs `:wq`) | OpenCode, Claude | 1/3 (1/5) — flaky ~20 % |
+| `overfull-hbox` | `test_input_file_matches` (word outside `synonyms.txt`) | Pi, Claude | **3/3** (3/5) — passes more often than not |
+| `sanitize-git-repo` | `test_removal_of_secret_information` | OpenCode, Claude | 1/3 (2/5) — flaky ~40 % |
+| `filter-js-from-html` | both (task-side, byte-exact) | nobody, in any run | task-side |
+
+The cell run (`…221348-209862`, 3 attempts per cell plus a `log-summary` canary that passed 3/3)
+changes the reading of this table: **four of moca's five real losses are not stable defects.**
+`overfull-hbox` passing 3/3 in particular means moca's expected 24-task score is closer to
+**19/24** than the 18 it measured — inside the pack with Pi and OpenCode, not clearly behind it.
 
 **The cost ranking survives the harder set.** moca is still the cheapest by every measure —
 $0.0227/solved and 0.85 M tok/solved, ~25 % under Pi and OpenCode and 22× under Claude's
@@ -61,8 +66,11 @@ API-equivalent. Losing three cells to Claude Code costs $0.48 per solved task.
 64–93 %, Claude 69–96 %), so "moca is last" and "Claude is first" are directional at n=24 with
 one attempt — the ordering is consistent with the per-cell detail, not proven by the totals. Two
 of moca's five screening failures did **not** reproduce here (`gcode-to-text` and `dna-insert`
-passed), which is a reminder that single-attempt cells move. Repeating this sweep is what would
-make the ranking a measurement.
+passed), and the 3× cell run then showed four of the five remaining losses are flaky too: at
+these settings a single 24-task run samples a noisy subset of cells, and moca's own expected rate
+is ~19/24. **Repeating this sweep unchanged — all four agents — is what would make the ranking a
+measurement**; a single-agent repeat cannot, because the comparison, not the column, is the
+quantity in doubt.
 
 ### Per-task matrix — 24 tasks (seconds and turns per trial)
 
