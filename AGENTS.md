@@ -8,8 +8,8 @@ A reproducible benchmark that runs four coding agents — **moca**, **OpenCode**
 - **Harbor is external and version-pinned.** The installed package (`$(uv tool dir)/harbor/lib/python*/site-packages/harbor/`, version = `HARBOR_VERSION`) is the authoritative API reference for agent base classes, the JobConfig schema, and the CLI. Read the installed code (or `harbor run --help`, `harbor job schema`) — never guess an API from the web docs, which track `main`, not the pin.
 - The agents under test are external too: pin releases (`MOCA_VERSION`, per-agent `kwargs.version`) — this repo never patches or forks an agent to make it look better.
 - **moca's release line runs ahead of the last measured round.** v0.7.5–v0.7.10 are released; the v0.7.10 train (branding pass, review pass, provider model discovery, the `opencode-zen` → `opencode` provider key) shipped on 2026-10-24 and `MOCA_VERSION` is pinned to it. The
-  newest *measured* release is **v0.7.10: 11/12** on 2026-10-25 (`cab-subset-20261025-014057-1313816`),
-against 8/12 at v0.7.4 — but that round also moved the model and the step budget, so it is a
+  newest *measured* release is **v0.7.10: 11/12, twice** on 2026-10-25 (`…-014057-1313816` and the
+hold-study repeat `…-100949-2263993`: 22/24 combined, identical cell pattern), against 8/12 at v0.7.4 — but that round also moved the model and the step budget, so it is a
 new baseline, and the reports say so instead of crediting a release. From v0.7.10 moca discovers each provider's model list at session start and validates the configured `model` against it (fail-open on discovery errors, but an unlisted id fails the session) — `make doctor` probes the same `/models` catalog for `ZEN_MODEL` and warns when the id is not listed; the hard stop is moca's own `Registry.Verify` at session start, not the preflight.
 
 ## Commands (verification ladder — cheapest first)

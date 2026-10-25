@@ -51,6 +51,7 @@ Two rules this report follows, learned the hard way:
 | v0.6.4 | 10-18 | `…20261018-124841` | **10/12** | $0.2604 | 6.07 M | $0.0260 | 607 K | 6.5 min | 1 × exit 3 |
 | v0.7.4 | 10-22 | `…20261022-143907-1093976` | 8/12 | $0.4194 | 7.34 M | $0.0524 | 918 K | 19.8 min | 2 × exit 3 |
 | v0.7.10² | 10-25 | `…20261025-014057-1313816` | **11/12** | $0.2142 | 8.42 M | $0.0195 | 770 K | 7.9 min | — |
+| v0.7.10³ | 10-25 | `…20261025-100949-2263993` | **11/12** | $0.1826 | 8.54 M | **$0.0166** | 780 K | 8.8 min | — |
 
 ¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its
 session, so that trial reports 0 tokens. Treat v0.6.2's figures as a floor.
@@ -59,6 +60,9 @@ session, so that trial reports 0 tokens. Treat v0.6.2's figures as a floor.
 v0.7.10), model (`glm-5.3-flash` → `deepseek-v4.1-flash`) and step budget (100 → 250).
 The +3 cells cannot be attributed to any one of them; the cell runs below test the cells
 that moved.
+³ **Repeat of the same round, same settings, 2026-10-25 10:09** — run to test whether
+the 11/12 holds. It does: same cell lost (`filter-js`), same pass everywhere else, and the
+cheapest round on record. Details in the reproducibility paragraph below.
 
 **v0.6.5 was not benched** — docs-only by construction (no agent-loop change), so it carries
 no row. That makes the current pin (v0.7.10) a **six-release jump** from the last
@@ -209,6 +213,13 @@ The number is real, and it is **not attributable**. Three knobs moved together: 
 budget (100 → 250). The cell run above rules out variance on the cells that moved (3/3 each),
 so the open question is *which* change earned the cells, not whether they were won.
 
+**Reproducibility.** The round was repeated end-to-end at identical settings (`…100949-2263993`,
+2 h 09 m): **11/12 again**, the same cell lost, **22/24** across the pair. 45 of the 48 cells
+came back with the same verdict, and all three flips were in the other agents' columns
+(Claude Code gained `extract-elf` and `fix-git`; OpenCode lost `kv-store-grpc`) — moca's
+column was identical from top to bottom. The second run was also the cheapest on record:
+$0.0166/solved, under v0.6.1's $0.0182.
+
 **Efficiency.** $0.0195/solved is the second-cheapest round ever — 2.7× cheaper than v0.7.4
 ($0.0524) and behind only v0.6.1 ($0.0182). Token volume, 770 K/solved, is still 1.9×
 v0.6.1's 415 K: the remaining cost is prompt volume rather than step count, and 250 steps
@@ -237,9 +248,10 @@ neither was varied alone before.
 4. **Token volume is the remaining efficiency gap.** 770 K tok/solved against v0.6.1's 415 K, at
    a similar pass count. That is a prompt/context question (cache reads dominate), not a step
    question, and it is where the next 2× sits.
-5. **One attempt per cell still cannot rank two releases.** 11/12 is 65–99 % (Wilson); the
-   cell runs exist because the subset's noise band is ±2–3 cells. Any future release claim
-   needs the same treatment.
+5. **The noise is in the other agents' columns, not moca's.** Two full runs put moca at 11/12
+   with an identical cell pattern; the three flips in the pair were Claude Code (2 up) and
+   OpenCode (1 down). So a release claim still needs the repeat — but on this subset the
+   benchmark now has an agent whose score is stable enough to detect a one-cell change.
 
 **Proposed actions for the next moca version (and the rounds around it)**
 

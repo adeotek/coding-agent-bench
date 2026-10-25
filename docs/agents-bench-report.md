@@ -20,7 +20,7 @@ cross-agent view; the release-by-release moca history is in
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 2026-10-25, four agents (48 trials, 1 h 50 m)
+## Headline — 2026-10-25, four agents (run 1 of 2, 48 trials, 1 h 50 m)
 
 Every pin moved since the 10-16 sweep and the three zen agents changed model, so this table is
 a **new baseline**, not a delta on the one below it. Same 12 tasks, 1 attempt, same sandbox,
@@ -35,12 +35,12 @@ moca at 250 steps.
 
 Zen spend for the sweep: **$0.82** cash. Claude: **$5.36 API-equivalent, $0 cash**.
 
-The three zen agents are **statistically indistinguishable** here — 11/12 each, and the same
-cell (`filter-js-from-html`) is the only loss for all four agents. The differences are cost and
-speed: moca and Pi solve a task for ~$0.02 and ~70 s, OpenCode for ~$0.036 and 107 s, Claude
-Code for 34× that (API-equivalent) and twice the wall clock. Claude Code's 8/12 is four losses
-(`db-wal-recovery`, `extract-elf`, `fix-git`, `filter-js`) — it was 10/12 on 10-16 on a task set
-where the zen agents now pass those cells.
+The three zen agents are **indistinguishable at one attempt** — 11/12 each, same single loss
+— so the run was repeated; the hold study below is what this report's ranking should be read
+from. What survives both runs is cost and speed: moca and Pi solve a task for ~$0.017–0.023
+and ~65 s, OpenCode for ~$0.026–0.036 and ~100 s, Claude Code for 25–35× that (API-equivalent)
+and twice the wall clock. Claude Code's 8/12 here is a low draw, not a level: two of its four
+losses are cells it wins in run 2.
 
 **What this sweep cannot say.** Three variables moved for the zen agents at once (release,
 model, and moca's step budget), and each agent's delta is measured against a sweep that ran a
@@ -71,6 +71,40 @@ rounds, and the failure is not a near miss: `test_clean_html_unchanged` compares
 parser re-serialisation byte-for-byte (indentation, `\n\n` after the doctype, `&copy;` vs `©`),
 so a semantically perfect filter fails. Its verifier also hangs — two of the three diagnostic
 attempts produced no verdict at all. Report it as `11/11` and `11/12` beside each other.
+
+## Hold study — 2026-10-25, run 2 (identical settings, 2 h 09 m)
+
+Same 12 tasks, same pins, same model, 1 attempt, max-retries 1 — nothing changed between runs
+except the clock. Job `cab-subset-20261025-100949-2263993`.
+
+| agent | run 1 | run 2 | combined | cost (r1 → r2) | $/solved | median run |
+|---|---|---|---|---|---|---|
+| **moca** | 11/12 | **11/12** | **22/24** | $0.2142 → $0.1826 | **$0.0166–0.0195** | 65 s |
+| **Pi** | 11/12 | **11/12** | **22/24** | $0.2169 → $0.2513 | $0.0197–0.0228 | 68 s |
+| **OpenCode** | 11/12 | 10/12 | 21/24 | $0.3908 → $0.2599 | $0.0260–0.0355 | 107 s |
+| **Claude Code** | 8/12 | 10/12 | 18/24 | $5.3576 → $5.7116 eq | $0.5712–0.6697 eq | 126–135 s |
+
+**45 of 48 cells returned the same verdict.** All three flips were outside moca: `extract-elf`
+and `fix-git` flipped **to** Claude Code, `kv-store-grpc` flipped **away from** OpenCode.
+moca's column was identical across both runs (11 passes, `filter-js` lost), and so was Pi's.
+
+What that changes:
+
+- **The moca/Pi tie is real; the three-way tie was a single-attempt artefact.** OpenCode is half
+  a cell behind over 24 trials, and it is the agent that lost a cell nobody else lost.
+- **Claude Code's 18/24 is the honest number, and its spread is the widest in the study** (8–10
+  per run). Two of its four run-1 losses were wins in run 2, so the earlier "it dropped from
+  10/12" read was noise. Its stable losses are `db-wal-recovery` and `filter-js`, both runs.
+- **`filter-js-from-html` is 0/8 here and 0/25 lifetime** across four agents, two models and
+  four rounds. Nothing about the hold study touches it: it is a task-side cell.
+- **Rate limiting is a live threat to concurrent zen legs.** One trial (`opencode`,
+  `extract-elf`) recorded `ApiRateLimitError` — reward 1.0 anyway — and the run took 19 min
+  longer than run 1. A four-agent sweep hits one endpoint with four sandboxes at once; stagger
+  the legs or space them out if it starts costing cells.
+
+**This is the first pair of runs in the repo that can measure agent variance**, because nothing
+but time changed. Two runs is two samples: enough to see that moca and Pi are stable, not enough
+to put a confidence interval on any agent's true rate.
 
 ## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 

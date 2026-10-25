@@ -193,7 +193,8 @@ Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.10 · OpenCod
 
 - `make doctor` validates docker, Harbor, the adapter import (with its default pin and key variable) and credential presence; it also reads the provider's `/models` catalog and warns when `ZEN_MODEL` is not listed there — moca ≥ v0.7.10 validates the configured model against its discovered list, so a retired id must be caught before a sweep, not during one.
 - `--dry-run` passes both profiles (smoke = 4 trials; subset with `docs/tb2-subset-12.txt` = 48 trials).
-- The newest four-agent sweep is **2026-10-25** at the current pins (moca v0.7.10 / OpenCode 2.1.4 / Pi 1.4.0 / Claude Code 2.1.310, deepseek, moca at 250 steps): 11/12 for each zen agent, 8/12 for Claude Code, `filter-js` lost by all four. Details and the honest caveats are in [`docs/agents-bench-report.md`](docs/agents-bench-report.md). A four-agent in-container smoke (4/4 reward 1.0, every version confirmed in `result.json`) dates from the same day.
+- The newest four-agent sweep is **2026-10-25** at the current pins (moca v0.7.10 / OpenCode 2.1.4 / Pi 1.4.0 / Claude Code 2.1.310, deepseek, moca at 250 steps): 11/12 for each zen agent, 8/12 for Claude Code, `filter-js` lost by all four. The round was repeated unchanged and held: moca and Pi
+11/12 again, 45 of 48 cells identical, OpenCode 10/12, Claude Code 10/12. Details and the honest caveats are in [`docs/agents-bench-report.md`](docs/agents-bench-report.md). A four-agent in-container smoke (4/4 reward 1.0, every version confirmed in `result.json`) dates from the same day.
 - Historical one-off reports keep their forensic detail: [2026-10-11](docs/bench-2026-10-11-moca-claude-code-pi.md) and [2026-10-16](docs/bench-2026-10-16-moca-claude-code-pi-opencode.md). Both are superseded by the tracking reports above.
 
 ## References
