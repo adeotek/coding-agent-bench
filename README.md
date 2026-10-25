@@ -15,8 +15,11 @@ agents/moca.py          Harbor integration (BaseInstalledAgent) for moca
 agents/opencode_v2.py   Harbor integration for OpenCode v2 (@opencode/cli)
 scripts/bench.sh        main entry point (setup | doctor | probe | dry-run | run | view | prune)
 scripts/render_config.py renders the effective Harbor JobConfig JSON per profile
-scripts/bench_report.py re-derives the report tables from results/jobs
+scripts/bench_report.py re-derives the report tables from results/jobs (runs|summary|matrix|steps|json)
 scripts/probe-auth.sh   live 1-token credential probes (local binaries, scratch state)
+test/                   unit tests for the moca run line and the report parsers (make test)
+docs/tb2-subset-12.txt       the fixed 12-task subset every comparison uses
+docs/tb2-screen.txt          the 77 never-run tasks, ordered cheap-first (make screen BATCH=N)
 docs/moca-bench-report.md    every moca run, cross-version, with the next-release actions
 docs/agents-bench-report.md  moca vs Claude Code vs OpenCode vs Pi
 Makefile                thin wrappers around bench.sh (make help)
@@ -97,7 +100,26 @@ make subset         # terminal-bench@2.0, first N_TASKS tasks (default 20) × 4 
   TASK_NAMES=task-a,task-b,task-c make subset   # .env knob, same effect
   ```
 
-### 3. Full Terminal-Bench 2.0
+### 3. Screening new tasks (moca only)
+
+The 12-task subset is saturated (11/12 for three of four agents, the one loss task-side), so
+growth now comes from failures elsewhere, not from a bigger sample of the same 12.
+`docs/tb2-screen.txt` lists the 77 terminal-bench 2.0 tasks this bench has never run, ordered
+cheap-first; `docs/tb2-screen-batch-1.txt` is the first 10.
+
+```bash
+make screen              # batch 1: moca only, 1 attempt, ~$0.20 of zen spend
+make screen BATCH=3      # next 10-task batch
+make prune               # between batches — task images are GB-sized
+scripts/bench_report.py steps cab-subset-<stamp>   # turns/tools/tokens per trial
+```
+
+Read the result as a **failure corpus**, not a score: the value is in the cells moca drops and
+in how many turns it spends failing. `steps` reports turns (one model response plus its tool
+calls), tool calls, tokens/turn and proximity to `MOCA_MAX_STEPS`, so a failure can be
+classified as budget exhaustion, a tool loop, context growth, or a plain wrong answer.
+
+### 4. Full Terminal-Bench 2.0
 
 ```bash
 make full           # whole dataset (100+ tasks) × 4 agents — expensive: hours, GBs of images
@@ -183,6 +205,7 @@ Update procedure (in the same commit as the run):
 python3 scripts/bench_report.py runs                  # one line per job
 python3 scripts/bench_report.py summary <job>         # per-agent cost/token/speed
 python3 scripts/bench_report.py matrix <job> <job>    # task × job pass matrix
+python3 scripts/bench_report.py steps <job>           # turns/tools/tokens per trial + step cap
 ```
 
 Add the row (moca report) or the column (agents report), re-derive the matrix, write the per-cell diagnosis, then refresh the summary section — a scoreboard that argues with its own table is worse than no scoreboard.
