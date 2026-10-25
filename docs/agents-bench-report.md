@@ -20,7 +20,59 @@ cross-agent view; the release-by-release moca history is in
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 2026-10-16, four agents (48 trials, 2 h 03 m)
+## Headline — 2026-10-25, four agents (48 trials, 1 h 50 m)
+
+Every pin moved since the 10-16 sweep and the three zen agents changed model, so this table is
+a **new baseline**, not a delta on the one below it. Same 12 tasks, 1 attempt, same sandbox,
+moca at 250 steps.
+
+| agent | version | model | solved | rate (95 % CI) | cost | $/solved | tok/solved | median agent run |
+|---|---|---|---|---|---|---|---|---|
+| **moca** | v0.7.10 | deepseek-v4.1-flash | **11/12** | 92 % (65–99 %) | **$0.2142** | **$0.0195** | 0.77 M | **65 s** |
+| **Pi** | 1.4.0 | deepseek-v4.1-flash | **11/12** | 92 % (65–99 %) | $0.2169 | $0.0197 | **0.72 M** | 68 s |
+| **OpenCode** | 2.1.4 | deepseek-v4.1-flash | **11/12** | 92 % (65–99 %) | $0.3908 | $0.0355 | 1.66 M | 107 s |
+| **Claude Code** | 2.1.310 | claude-sonnet-5 | 8/12 | 67 % (39–86 %) | $5.3576 equiv ($0 cash) | $0.6697 equiv | 1.50 M | 135 s |
+
+Zen spend for the sweep: **$0.82** cash. Claude: **$5.36 API-equivalent, $0 cash**.
+
+The three zen agents are **statistically indistinguishable** here — 11/12 each, and the same
+cell (`filter-js-from-html`) is the only loss for all four agents. The differences are cost and
+speed: moca and Pi solve a task for ~$0.02 and ~70 s, OpenCode for ~$0.036 and 107 s, Claude
+Code for 34× that (API-equivalent) and twice the wall clock. Claude Code's 8/12 is four losses
+(`db-wal-recovery`, `extract-elf`, `fix-git`, `filter-js`) — it was 10/12 on 10-16 on a task set
+where the zen agents now pass those cells.
+
+**What this sweep cannot say.** Three variables moved for the zen agents at once (release,
+model, and moca's step budget), and each agent's delta is measured against a sweep that ran a
+different model. Nothing here attributes a cell to an agent's code. The per-cell picture:
+
+| task | moca | opencode | pi | claude-code |
+|---|---|---|---|---|
+| build-cython-ext | ✅ (270 s) | ✅ (223 s) | ✅ (252 s) | ✅ (285 s) |
+| cobol-modernization | ✅ (472 s) | ✅ (315 s) | ✅ (367 s) | ✅ (369 s) |
+| custom-memory-heap-crash | ✅ (140 s) | ✅ (207 s) | ✅ (88 s) | ✅ (375 s) |
+| db-wal-recovery | ✅ (24 s) | ✅ (113 s) | ✅ (16 s) | ❌ (138 s) |
+| extract-elf | ✅ (70 s) | ✅ (100 s) ⚠️ | ✅ (115 s) | ❌ (131 s) |
+| filter-js-from-html | ❌ (259 s) | ❌ (1800 s) ⚠️ | ❌ (517 s) | ❌ (181 s) |
+| fix-git | ✅ (18 s) | ✅ (26 s) | ✅ (27 s) | ❌ (21 s) |
+| kv-store-grpc | ✅ (35 s) | ✅ (31 s) | ✅ (32 s) | ✅ (33 s) |
+| log-summary-date-ranges | ✅ (27 s) | ✅ (13 s) | ✅ (15 s) | ✅ (22 s) |
+| mailman | ✅ (375 s) | ✅ (286 s) | ✅ (354 s) | ✅ (396 s) |
+| multi-source-data-merger | ✅ (34 s) | ✅ (43 s) | ✅ (47 s) | ✅ (47 s) |
+| nginx-request-logging | ✅ (60 s) | ✅ (35 s) | ✅ (23 s) | ✅ (39 s) |
+
+⚠️ = the trial recorded an agent-phase exception. Both here are reward-1.0 trials with
+`NonZeroAgentExitCodeError` alongside (OpenCode's known sporadic exit 1 after a clean final
+message); `filter-js`'s 1800 s is that trial burning both the agent and verifier budgets on a
+task no agent can pass.
+
+**Task-side cell.** `filter-js-from-html` is now 0/17 across four agents, two models and three
+rounds, and the failure is not a near miss: `test_clean_html_unchanged` compares output against
+parser re-serialisation byte-for-byte (indentation, `\n\n` after the doctype, `&copy;` vs `©`),
+so a semantically perfect filter fails. Its verifier also hangs — two of the three diagnostic
+attempts produced no verdict at all. Report it as `11/11` and `11/12` beside each other.
+
+## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 
 | agent | version | model | solved | rate (95 % CI) | cost | $/solved | tok/solved | median agent run |
 |---|---|---|---|---|---|---|---|---|
@@ -39,7 +91,7 @@ The 2026-10-11 three-agent run on the same tasks, for the record:
 | moca | v0.3.0-beta | 10/12 | $0.1886 | $0.0189 |
 | Pi | 1.1.0 | 9/12 | $0.4295 | $0.0477 |
 
-## Per-task matrix — 2026-10-16
+## Per-task matrix — 2026-10-16 (historical)
 
 | task | moca | opencode | pi | claude-code |
 |---|---|---|---|---|
@@ -129,11 +181,10 @@ same task in 45 s the week before. `filter-js` is the other loss.
 
 ## What would make this report current
 
-1. **Re-run the four-agent sweep at the current pins** — moca v0.7.10, OpenCode 2.1.4, Pi 1.4.0,
-   Claude Code 2.1.310 — same 12-task subset, 1 attempt, ~2 h, ≈$1–2 zen + $0 cash. It runs on
-   `deepseek-v4.1-flash`, so it is a **new baseline**: compare it to the glm snapshot as a
-   model change too, never as a pure agent delta. That is the only way to replace the
-   2026-10-16 snapshot with a current ranking.
+1. **Done — the 2026-10-25 sweep replaced the 10-16 snapshot.** The next thing worth running is
+   an attribution leg, not another sweep: one agent at a time, one knob moved (v0.7.10 at
+   `glm-5.3-flash`, or v0.7.4 at deepseek), on the same 12 tasks. Nothing in the current table
+   says which of pin/model/budget produced the +3 cells.
 2. **Keep the moca-only rounds out of this table.** They are a release history, not a
    comparison; mixing them would silently compare different dates.
 3. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the

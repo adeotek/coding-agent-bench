@@ -159,6 +159,12 @@ def cmd_summary(jobs_dir: Path, args: list[str]) -> None:
 def cmd_matrix(jobs_dir: Path, args: list[str]) -> None:
     jobs = [load_job(jobs_dir, name) for name in args]
     tasks = sorted({r["task"] for job in jobs for r in job["rows"]})
+    # A fixed, stated agent order. Trial directories are named task__<random>, so
+    # iterating them in path order produced letters whose agent order changed per
+    # task — unreadable, and easy to misreport (claude-code's db-wal loss read as
+    # a pi loss). Letters are now grouped by agent, alphabetically, with attempts
+    # in trial order inside a group; a missing agent shows as a dot.
+    agents = sorted({r["agent"] for job in jobs for r in job["rows"]})
     columns = [f"{job['name']}" for job in jobs]
     print("| task | " + " | ".join(columns) + " |")
     print("|---" * (len(columns) + 1) + "|")
@@ -166,8 +172,21 @@ def cmd_matrix(jobs_dir: Path, args: list[str]) -> None:
         cells = []
         for job in jobs:
             rows = [r for r in job["rows"] if r["task"] == task]
-            cells.append("".join(verdict(r) for r in rows) or "—")
+            if not rows:
+                cells.append("—")
+                continue
+            by_agent: dict[str, list[str]] = {}
+            for r in sorted(rows, key=lambda r: (r["agent"], r["trial"] or "")):
+                by_agent.setdefault(r["agent"], []).append(verdict(r))
+            cells.append(
+                " ".join(
+                    "".join(by_agent[a]) if a in by_agent else "·" for a in agents
+                )
+            )
         print(f"| {task} | " + " | ".join(cells) + " |")
+    print()
+    print("letters are grouped by agent, in this order: " + " · ".join(agents) +
+          " (attempts in trial order inside a group; `·` = no trial for that agent)")
 
 
 def cmd_json(jobs_dir: Path, args: list[str]) -> None:
