@@ -14,13 +14,88 @@ cross-agent view; the release-by-release moca history is in
 
 | | |
 |---|---|
-| Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) |
+| Dataset | `terminal-bench@2.0`. Two instruments: the fixed 12-task subset ([`docs/tb2-subset-12.txt`](tb2-subset-12.txt), all rows before 2026-10-25 17:40) and the 24-task comparison set ([`docs/tb2-subset-24.txt`](tb2-subset-24.txt) — those 12 plus 12 cells chosen from the screening sweep). The 24-task run is the current baseline |
 | Models | moca / OpenCode / Pi: `opencode-go/deepseek-v4.1-flash` from 2026-10-24 (`opencode-go/glm-5.3-flash` was the default before — the rows below ran glm). Claude Code: `anthropic/claude-sonnet-5` — it cannot use a zen key, by design |
 | Permissive modes | moca `--mode yolo`, OpenCode `--auto`, Claude Code `bypassPermissions` |
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 2026-10-25, four agents (run 1 of 2, 48 trials, 1 h 50 m)
+## Headline — 2026-10-25, 24-task set (96 trials, 4 h 07 m)
+
+The twelve-task set saturated in this same sweep: **all four agents scored 11/12 on it**, the
+only loss being the task-side `filter-js-from-html`. The 24-task set — those 12 plus twelve cells
+picked from the screening sweep — is the first instrument that separates them.
+
+| agent | version | model | solved | 95 % CI | old 12 | new 12 | cost | $/solved | tok/solved | median run |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Claude Code** | 2.1.310 | claude-sonnet-5 | **21/24** | 69–96 % | 11/12 | **10/12** | $10.5445 eq | $0.5021 eq | 1.01 M | **120 s** |
+| **OpenCode** | 2.1.4 | deepseek | 20/24 | 64–93 % | 11/12 | 9/12 | $0.6102 | $0.0305 | 1.42 M | 111 s |
+| **Pi** | 1.4.0 | deepseek | 20/24 | 64–93 % | 11/12 | 9/12 | $0.5692 | $0.0285 | 1.21 M | 157 s |
+| **moca** | v0.7.10 | deepseek | **18/24** | 55–88 % | 11/12 | 7/12 | **$0.4088** | **$0.0227** | **0.85 M** | 133 s |
+
+Zen cash for the sweep **$1.59**; Claude **$10.54 API-equivalent, $0 cash**. Job
+`cab-subset-20261025-174057-3299781`.
+
+**Every point of separation is in the twelve added cells.** On the original twelve the four
+agents are indistinguishable at 11/12 — including Claude Code, which scored 8/12 and 10/12 in the
+two earlier sweeps of that set. On the twelve added cells it is Claude 10, OpenCode 9, Pi 9,
+**moca 7**.
+
+**moca loses six cells, and a competitor passes every one of them.** No cell is moca-only, and
+`filter-js-from-html` is the only cell all four fail:
+
+| moca's loss | failing test | who passes it |
+|---|---|---|
+| `configure-git-webserver` | `test_hello_html_exists` (HTTP 404) | Claude Code only |
+| `dna-assembly` | `test_primers` | Pi only |
+| `large-scale-text-editing` | `test_apply_macros_well_formed` (script ends `wq`, not `:wq`) | OpenCode, Claude |
+| `overfull-hbox` | `test_input_file_matches` (word outside `synonyms.txt`) | Pi, Claude |
+| `sanitize-git-repo` | `test_removal_of_secret_information` | OpenCode, Claude |
+| `filter-js-from-html` | both (task-side, byte-exact) | nobody, in any run |
+
+**The cost ranking survives the harder set.** moca is still the cheapest by every measure —
+$0.0227/solved and 0.85 M tok/solved, ~25 % under Pi and OpenCode and 22× under Claude's
+API-equivalent. Losing three cells to Claude Code costs $0.48 per solved task.
+
+**What this does not establish.** The confidence intervals overlap (moca 55–88 %, OpenCode/Pi
+64–93 %, Claude 69–96 %), so "moca is last" and "Claude is first" are directional at n=24 with
+one attempt — the ordering is consistent with the per-cell detail, not proven by the totals. Two
+of moca's five screening failures did **not** reproduce here (`gcode-to-text` and `dna-insert`
+passed), which is a reminder that single-attempt cells move. Repeating this sweep is what would
+make the ranking a measurement.
+
+### Per-task matrix — 24 tasks (seconds and turns per trial)
+
+| task | moca | opencode | pi | claude-code |
+|---|---|---|---|---|
+| break-filter-js-from-html | ✅ (95 s, 12 t) | ✅ (50 s, 10 t) | ✅ (55 s, 8 t) | ✅ (117 s, 12 t) |
+| build-cython-ext | ✅ (280 s, 52 t) | ✅ (229 s, 37 t) | ✅ (249 s, 30 t) | ✅ (306 s, 59 t) |
+| circuit-fibsqrt | ✅ (292 s, 29 t) | ✅ (473 s, 17 t) | ✅ (762 s, 7 t) | ✅ (706 s, 19 t) |
+| cobol-modernization | ✅ (280 s, 38 t) | ✅ (579 s, 82 t) | ✅ (650 s, 60 t) | ✅ (447 s, 24 t) |
+| configure-git-webserver | ❌ (110 s, 15 t) | ❌ (225 s, 32 t) | ❌ (122 s, 12 t) | ✅ (124 s, 15 t) |
+| crack-7z-hash | ✅ (371 s, 20 t) | ✅ (300 s, 27 t) | ✅ (286 s, 19 t) | ✅ (292 s, 21 t) |
+| custom-memory-heap-crash | ✅ (95 s, 20 t) | ✅ (116 s, 18 t) | ✅ (140 s, 21 t) | ✅ (93 s, 10 t) |
+| db-wal-recovery | ✅ (140 s, 28 t) | ✅ (29 s, 6 t) | ✅ (43 s, 9 t) | ✅ (67 s, 16 t) |
+| dna-assembly | ❌ (445 s, 35 t) | ❌ (721 s, 48 t) | ✅ (336 s, 33 t) | ❌ (607 s, 22 t) |
+| dna-insert | ✅ (290 s, 30 t) | ✅ (397 s, 25 t) | ✅ (553 s, 59 t) | ❌ (176 s, 18 t) |
+| extract-elf | ✅ (44 s, 11 t) | ✅ (106 s, 15 t) | ✅ (133 s, 21 t) | ✅ (86 s, 9 t) |
+| filter-js-from-html | ❌ (268 s, 19 t) | ❌ (733 s, 65 t) | ❌ (896 s, 56 t) | ❌ (153 s, 6 t) |
+| fix-git | ✅ (30 s, 11 t) | ✅ (33 s, 12 t) | ✅ (35 s, 9 t) | ✅ (27 s, 8 t) |
+| gcode-to-text | ✅ (673 s, 71 t) | ✅ (751 s, 51 t) | ✅ (348 s, 45 t) | ✅ (212 s, 14 t) |
+| git-multibranch | ✅ (179 s, 22 t) | ✅ (83 s, 13 t) | ✅ (115 s, 16 t) | ✅ (67 s, 14 t) |
+| kv-store-grpc | ✅ (38 s, 11 t) | ✅ (75 s, 18 t) | ✅ (26 s, 9 t) | ✅ (43 s, 11 t) |
+| large-scale-text-editing | ❌ (258 s, 15 t) | ✅ (106 s, 12 t) | ❌ (103 s, 11 t) | ✅ (94 s, 7 t) |
+| log-summary-date-ranges | ✅ (15 s, 5 t) | ✅ (19 s, 5 t) | ✅ (19 s, 5 t) | ✅ (23 s, 6 t) |
+| mailman | ✅ (325 s, 53 t) | ✅ (247 s, 35 t) | ✅ (456 s, 52 t) | ✅ (405 s, 57 t) |
+| multi-source-data-merger | ✅ (75 s, 18 t) | ✅ (72 s, 12 t) | ✅ (37 s, 5 t) | ✅ (55 s, 6 t) |
+| nginx-request-logging | ✅ (44 s, 11 t) | ✅ (34 s, 8 t) | ✅ (36 s, 8 t) | ✅ (41 s, 10 t) |
+| overfull-hbox | ❌ (125 s, 22 t) | ❌ (147 s, 25 t) | ✅ (175 s, 30 t) | ✅ (174 s, 28 t) |
+| password-recovery | ✅ (49 s, 14 t) | ✅ (71 s, 14 t) | ✅ (271 s, 20 t) | ✅ (286 s, 19 t) |
+| sanitize-git-repo | ❌ (54 s, 12 t) | ✅ (82 s, 13 t) | ❌ (199 s, 23 t) | ✅ (101 s, 13 t) |
+
+Legend: ✅ pass · ❌ fail · ⏱ no verdict · `t` = assistant turns from the agent transcript.
+
+## Headline — 2026-10-25, 12-task set (run 1 of 2, 48 trials, 1 h 50 m) — superseded by the 24-task baseline
 
 Every pin moved since the 10-16 sweep and the three zen agents changed model, so this table is
 a **new baseline**, not a delta on the one below it. Same 12 tasks, 1 attempt, same sandbox,
@@ -237,13 +312,17 @@ same task in 45 s the week before. `filter-js` is the other loss.
 
 ## What would make this report current
 
-1. **Done — the 2026-10-25 sweep replaced the 10-16 snapshot.** The next thing worth running is
-   an attribution leg, not another sweep: one agent at a time, one knob moved (v0.7.10 at
-   `glm-5.3-flash`, or v0.7.4 at deepseek), on the same 12 tasks. Nothing in the current table
-   says which of pin/model/budget produced the +3 cells.
-2. **Keep the moca-only rounds out of this table.** They are a release history, not a
+1. **Repeat the 24-task sweep unchanged.** It is the current baseline and it was measured once.
+   At n=24 with one attempt the four CIs overlap, so the ordering (Claude 21, OpenCode/Pi 20,
+   moca 18) is directional; a second unchanged run is what turns it into a ranking — and on the
+   12-task set a repeat moved three cells between agents.
+2. **Cell-run moca's five real losses** (`configure-git-webserver`, `dna-assembly`,
+   `large-scale-text-editing`, `overfull-hbox`, `sanitize-git-repo`) at `N_ATTEMPTS=3` before any
+   fix is written: three of them reproduced a screening failure exactly, two of the screening
+   failures did not reproduce at all, so single-attempt cell verdicts are not yet trustworthy.
+3. **Keep the moca-only rounds out of this table.** They are a release history, not a
    comparison; mixing them would silently compare different dates.
-3. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
+4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
    verdict — at n=12 a single flip is inside the noise band.
 
 ## Update procedure
