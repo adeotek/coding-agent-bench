@@ -209,10 +209,10 @@ The number is real, and it is **not attributable**. Three knobs moved together: 
 budget (100 → 250). The cell run above rules out variance on the cells that moved (3/3 each),
 so the open question is *which* change earned the cells, not whether they were won.
 
-**Efficiency.** $0.0195/solved and 770 K tok/solved is the second-cheapest round ever — 2.7× cheaper than v0.7.4
-($0.0524) and behind only v0.6.1 ($0.0182). Token volume is 770 K/solved, still 1.9× v0.6.1's
-415 K, so the remaining cost is prompt volume rather than step count; 250 steps did not
-explode it (slowest trial 7.9 min, well inside the 900 s cap).
+**Efficiency.** $0.0195/solved is the second-cheapest round ever — 2.7× cheaper than v0.7.4
+($0.0524) and behind only v0.6.1 ($0.0182). Token volume, 770 K/solved, is still 1.9×
+v0.6.1's 415 K: the remaining cost is prompt volume rather than step count, and 250 steps
+did not explode it (slowest trial 7.9 min, well inside the 900 s cap).
 
 **What the previous rounds got wrong, in hindsight.** v0.7.4's summary blamed its two losses
 on variance and on a search-space gap, and proposed no budget change. At 250 steps with
