@@ -26,7 +26,7 @@ new baseline, and the reports say so instead of crediting a release. From v0.7.1
 ```bash
 make help                    # list targets
 make setup                   # uv tool install harbor==$HARBOR_VERSION + docker check
-make test                    # harness unit tests: moca run line + session mirror, report transcript parsers
+make test                    # harness unit tests (5 suites): moca run line, report parsers, pin guard
 make doctor                  # docker, harbor, adapter import, credential presence
 make doctor ARGS=--probe     # + one live request per agent (cents; needs .env)
 make dry-run ARGS=smoke      # validate config + import path + kwargs + credentials — no pulls, no tokens
@@ -49,7 +49,7 @@ make -n <target>             # show what a target would run, without running it
 - **`scripts/render_config.py`** — single source of the effective JobConfig. Invariants: moca/OpenCode/Pi share `ZEN_MODEL`; `claude-code` uses `CLAUDE_MODEL` (it cannot use a zen key — intentional); dataset pinned to `terminal-bench` `2.0`; profiles `smoke | subset | full`; custom agents via `import_path` (moca, opencode v2), pre-integrated agents via `name`. Defaults: `opencode-go/deepseek-v4.1-flash`, `anthropic/claude-sonnet-5`, `MOCA_VERSION=v0.7.10`, `MOCA_MAX_STEPS=250`, `MOCA_MODE=yolo`, `OPENCODE_VERSION=2.1.4`, `PI_VERSION=1.4.0`, `CLAUDE_VERSION=2.1.310`, `N_TASKS=20`, `N_CONCURRENT=2`. Knobs are env vars — add README's table row when adding one.
 - **`scripts/bench.sh`** — orchestration layer: loads `.env`, assembles the `--ae` arguments, exports `PYTHONPATH`, renders, runs Harbor. `run` renders to a per-run config file (`results/effective-<profile>-<timestamp>-<pid>.json`, with the canonical `effective-<profile>.json` refreshed for inspection) and passes a matching unique `--job-name` (`cab-<profile>-<timestamp>-<pid>`) — Harbor names job directories by second, so concurrent legs would otherwise collide; `dry-run`/`render` keep the canonical path. Keep `make` targets thin wrappers around it; logic belongs here.
 - **`scripts/probe-auth.sh`** — local credential probes with scratch state dirs. Secrets travel only via inherited environment (never argv), are never printed, and each probe mirrors the container's credential flow (not its binary versions).
-- **`scripts/bench_report.py`** — re-derives every table in the two reports from `results/jobs/` (`runs | summary <job> | matrix <job>… | steps <job>… | json <job>…`). `steps` reads the agent transcript rather than `result.json` — moca's `moca-session.jsonl` (one record per assistant turn, own `usage`) and the other agents' ATIF `trajectory.json` (one `source: agent` step per turn) — and reports turns, tool calls, tokens/turn and proximity to the step cap; its moca token total must equal `result.json`'s `n_input_tokens` (verified: 8.54 M on `…100949-2263993`). The job store is ground truth; the report prose is not. Reading `verifier_result.reward` instead of `verifier_result.rewards.reward` yields `None` for every trial — the script exists partly to keep that mistake out of the reports.
+- **`scripts/bench_report.py`** — re-derives every table in the two reports from `results/jobs/` (`runs | summary <job> | matrix <job>… | steps <job>… | credit <job>… | export <job>… | report <job>… | compare <job>… | diff <job> <task> | json <job>…`). `steps` reads the agent transcript rather than `result.json` — moca's `moca-session.jsonl` (one record per assistant turn, own `usage`) and the other agents' ATIF `trajectory.json` (one `source: agent` step per turn) — and reports turns, tool calls, tokens/turn and proximity to the step cap; its moca token total must equal `result.json`'s `n_input_tokens` (verified: 8.54 M on `…100949-2263993`). The job store is ground truth; the report prose is not. Reading `verifier_result.reward` instead of `verifier_result.rewards.reward` yields `None` for every trial — the script exists partly to keep that mistake out of the reports.
 - **`docs/tb2-subset-24.txt`** — the comparison set for post-screening rounds: the fixed 12 (byte-identical
   prefix, so `grep -v '^#' … | head -12` reproduces the old set) plus 12 cells chosen from the screening
   sweep because moca fails them or only passes them by grinding. Expected moca score ~18–20/24; the
@@ -59,6 +59,22 @@ make -n <target>             # show what a target would run, without running it
   `make screen BATCH=N` (moca only, 1 attempt). This is the failure corpus: the 12-task subset is
   saturated, so hardening comes from cells moca drops here — read it with `bench_report.py steps`.
 - **`docs/moca-bench-report.md` + `docs/agents-bench-report.md`** — the two tracking reports. **Update both in the same commit as any run**: add the row/column, re-derive the matrix, write the per-cell diagnosis, and refresh the moca report's closing summary (latest release vs all previous, open issues, actions for the next release). Keep every earlier run in place — the reports are the run history, not a snapshot.
+- **`scripts/manifest.py`** — `bench.sh run` calls `start` before launching Harbor and `finish`
+  after it, so every job directory carries `manifest.json`: harbor version + interpreter, repo
+  commit/branch/dirty, dataset + task-list fingerprint, agents with model ids and versions, the
+  knob values set in the launching shell, trial counts read back from `result.json`, and image
+  digests (best-effort — pruned images are `null`, never an error). `compare` calls
+  `comparable()` and **warns** when two jobs differ in toolchain, knobs or task list, and when a
+  job predates manifests. Jobs from before 2026-10-26 have no manifest; the warning is the
+  honest record of that.
+- **`docs/task-side.json`** — the registry of cells with a *demonstrated* verifier defect (not
+  "hard", not "flaky"). `report`/`export` exclude them from scores and print them under
+  "Excluded", because the history must stay comparable; `--include-task-side` puts them back.
+  Adding an entry requires reading the verifier **and** the transcripts, and citing both in the
+  `evidence` field.
+- **Partial credit** — `credit` parses `verifier/ctrf.json` (`results.summary`, `results.tests`)
+  and scores passed/total excluding `skipped`. Secondary metric only: a task is solved or not,
+  and it resolves ~3.4× finer than binary on this set (82 tests vs 24 cells).
 - **`Makefile`** — thin wrappers; each target documented with a `## ` comment (that feeds `make help`).
 - **`results/`** — gitignored output. Treat transcripts and logs as potentially sensitive; never commit.
 

@@ -164,7 +164,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 | `AGENTS` | all four | comma-separated subset |
 | `JOBS_DIR` | `results/jobs` | where job results go |
 | `HARBOR_VERSION` | `0.25.0` | Harbor pin — `run`/`dry-run` refuse to start on any other installed version |
-| `HARBOR_PYTHON` | `3.13` | Interpreter `setup` builds the Harbor tool env with (uv defaults to the newest Python; 3.15 cannot build `fastuuid`, and a failed install leaves no `harbor` binary at all) |
+| `HARBOR_PYTHON` | `3.14` | Interpreter `setup` builds the Harbor tool env with — the highest release with full wheel coverage (uv defaults to the newest Python; 3.15 cannot build `fastuuid`, and a failed install leaves no `harbor` binary at all) |
 
 Anything the wrapper doesn't expose can be passed straight through to Harbor:
 
@@ -218,6 +218,10 @@ python3 scripts/bench_report.py summary <job>         # per-agent cost/token/spe
 python3 scripts/bench_report.py matrix <job> <job>    # task × job pass matrix
 python3 scripts/bench_report.py steps <job>           # turns/tools/tokens per trial + step cap
 python3 scripts/bench_report.py compare <job> <job>   # paired per-task deltas, CI, McNemar, flip rate
+python3 scripts/bench_report.py credit <job>           # partial credit from verifier ctrf.json
+python3 scripts/bench_report.py export <job>           # summary.json: trials + manifest + aggregates
+python3 scripts/bench_report.py report <job> --out=docs/bench-latest.md   # generated tables
+python3 scripts/bench_report.py diff <job> <task>      # why one cell went differently
 
 `compare` is the only command that makes a claim. Every agent runs the same
 cells, so it pairs them **by task**: the delta is the mean per-task pass-rate
@@ -228,6 +232,17 @@ share of cells that change verdict between identical runs. A delta whose CI
 includes zero is not a finding, whatever the point estimate says: at 24 tasks a
 single cell is worth 4 points, so only a large, consistent difference clears the bar.
 ```
+
+`credit` reads `verifier/ctrf.json` (already written by every trial) and scores
+tests passed / tests run, skipping `skipped`. On the 24-task subset that is 82
+tests instead of 24 cells, so it resolves ~3.4× finer — moca goes from 82.6 % to
+95.0 % binary vs credit, because it usually fails one test of several. It is a
+secondary metric: a task is still solved or not. `report` writes the whole
+picture (run card from the manifest, leaderboard with CI + cost p50/p90, per-task
+matrix, paired verdicts, flip rate) and **excludes cells listed in
+`docs/task-side.json`** — every entry there carries its evidence, and
+`--include-task-side` puts them back.
+
 
 Add the row (moca report) or the column (agents report), re-derive the matrix, write the per-cell diagnosis, then refresh the summary section — a scoreboard that argues with its own table is worse than no scoreboard.
 

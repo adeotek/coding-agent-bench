@@ -33,7 +33,9 @@ HARBOR="${HARBOR:-harbor}"
 HARBOR_VERSION="${HARBOR_VERSION:-0.25.0}"
 # uv picks the newest interpreter by default, and a bare `uv tool install harbor` on a
 # host with Python 3.15 fails to build fastuuid and leaves NO harbor binary behind.
-HARBOR_PYTHON="${HARBOR_PYTHON:-3.13}"
+# 3.14 is the highest release with full wheel coverage for Harbor's dependency tree
+# (and matches the host's own python3); 3.13 remains a working fallback.
+HARBOR_PYTHON="${HARBOR_PYTHON:-3.14}"
 JOBS_DIR="${JOBS_DIR:-results/jobs}"
 HBPY="$(uv tool dir 2>/dev/null || true)/harbor/bin/python"
 
@@ -258,8 +260,32 @@ cmd_run() { # profile [extra harbor args...]
   # (cab-<profile>-<YYYYmmdd-HHMMSS>), so two legs launched in the same second
   # collide ("Job directory … already exists and cannot be resumed with a
   # different config") and one dies instantly. The pid makes it unique.
+  # Manifest: the toolchain, the knob values and the task-list fingerprint, written
+  # BEFORE harbor starts so it survives a crash, then finished into the job dir.
+  local job_name="cab-$profile-$run_id"
+  local manifest="results/manifests/$job_name.json"
+  local hp; hp="$("$(uv tool dir)/harbor/bin/python" -V 2>/dev/null | awk '{print $2}')"
+  python3 "$REPO/scripts/manifest.py" start \
+    --config "$cfg" --job-name "$job_name" --out "$manifest" \
+    --harbor-version "$(harbor_version)" --harbor-python "${hp:-unknown}" \
+    --knob "HARBOR_VERSION=$HARBOR_VERSION" --knob "HARBOR_PYTHON=$HARBOR_PYTHON" \
+    --knob "MOCA_VERSION=${MOCA_VERSION:-}" --knob "MOCA_MAX_STEPS=${MOCA_MAX_STEPS:-}" \
+    --knob "MOCA_MODE=${MOCA_MODE:-}" --knob "OPENCODE_VERSION=${OPENCODE_VERSION:-}" \
+    --knob "PI_VERSION=${PI_VERSION:-}" --knob "CLAUDE_VERSION=${CLAUDE_VERSION:-}" \
+    --knob "ZEN_MODEL=${ZEN_MODEL:-}" --knob "CLAUDE_MODEL=${CLAUDE_MODEL:-}" \
+    --knob "N_ATTEMPTS=${N_ATTEMPTS:-}" --knob "N_CONCURRENT=${N_CONCURRENT:-}" \
+    --knob "AGENTS=${AGENTS:-all}" --knob "TASK_NAMES=${TASK_NAMES:-}" \
+    || echo "WARN: could not write the run manifest (the run continues)" >&2
+
+  set +e
   PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}" \
-    "$HARBOR" run --config "$cfg" --job-name "cab-$profile-$run_id" "${AE_ARGS[@]}" "$@"
+    "$HARBOR" run --config "$cfg" --job-name "$job_name" "${AE_ARGS[@]}" "$@"
+  local rc=$?
+  set -e
+  python3 "$REPO/scripts/manifest.py" finish \
+    --manifest "$manifest" --job-dir "results/jobs/$job_name" --exit-code "$rc" \
+    || echo "WARN: could not finish the run manifest" >&2
+  return "$rc"
 }
 
 cmd_view() { # [extra harbor view args...]
@@ -273,7 +299,7 @@ cmd_prune() {
 }
 
 case "${1:-help}" in
-  setup) cmd_setup ;;
+  setup) shift; cmd_setup "$@" ;;
   doctor) shift || true; cmd_doctor "${1:-}" ;;
   probe) bash scripts/probe-auth.sh ;;
   dry-run | dryrun) shift || true; cmd_dry_run "${1:-subset}" ;;
