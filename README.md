@@ -15,7 +15,7 @@ agents/moca.py          Harbor integration (BaseInstalledAgent) for moca
 agents/opencode_v2.py   Harbor integration for OpenCode v2 (@opencode/cli)
 scripts/bench.sh        main entry point (setup | doctor | probe | dry-run | run | view | prune)
 scripts/render_config.py renders the effective Harbor JobConfig JSON per profile
-scripts/bench_report.py re-derives the report tables from results/jobs (runs|summary|matrix|steps|json)
+scripts/bench_report.py re-derives the report tables from results/jobs (runs|summary|matrix|steps|compare|json)
 scripts/probe-auth.sh   live 1-token credential probes (local binaries, scratch state)
 test/                   unit tests for the moca run line and the report parsers (make test)
 docs/tb2-subset-12.txt       the fixed 12-task subset every comparison uses
@@ -217,6 +217,16 @@ python3 scripts/bench_report.py runs                  # one line per job
 python3 scripts/bench_report.py summary <job>         # per-agent cost/token/speed
 python3 scripts/bench_report.py matrix <job> <job>    # task × job pass matrix
 python3 scripts/bench_report.py steps <job>           # turns/tools/tokens per trial + step cap
+python3 scripts/bench_report.py compare <job> <job>   # paired per-task deltas, CI, McNemar, flip rate
+
+`compare` is the only command that makes a claim. Every agent runs the same
+cells, so it pairs them **by task**: the delta is the mean per-task pass-rate
+difference, the 95 % CI comes from resampling *tasks* (never trials — repeats in
+one cell share its difficulty), and the exact McNemar p uses only the cells the
+two agents disagree on. Give it the same job twice to get the **flip rate** — the
+share of cells that change verdict between identical runs. A delta whose CI
+includes zero is not a finding, whatever the point estimate says: at 24 tasks a
+single cell is worth 4 points, so only a large, consistent difference clears the bar.
 ```
 
 Add the row (moca report) or the column (agents report), re-derive the matrix, write the per-cell diagnosis, then refresh the summary section — a scoreboard that argues with its own table is worse than no scoreboard.

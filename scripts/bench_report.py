@@ -12,12 +12,18 @@ Usage
   scripts/bench_report.py summary <job>...     per-agent efficiency for jobs
   scripts/bench_report.py matrix <job>...      task x job pass matrix
   scripts/bench_report.py steps <job>...       per-trial step/tool accounting
+  scripts/bench_report.py compare <job>...     paired per-task deltas, bootstrap CI, McNemar
   scripts/bench_report.py json <job>...        raw rows (for ad-hoc analysis)
 
 Rewards are read from `verifier_result.rewards.reward` (a dict — reading
 `verifier_result.reward` yields None for every trial). A trial is PASS at
 reward >= 1, FAIL at 0.0, and `?` when the verifier produced no verdict at all
 (a verifier exception), which must never be folded into "fail".
+
+`compare` is the only command that makes a *claim*: it pairs agents by task (every
+agent runs the same cells), bootstraps over tasks — never over trials, because
+repeats inside one task are correlated — and runs an exact McNemar test on the
+discordant cells. A delta whose CI straddles zero is not a finding.
 
 `steps` reads the agent-side transcript, not result.json: moca's
 `agent/moca-session.jsonl` (one record per assistant turn, each with its own
@@ -369,6 +375,196 @@ def cmd_steps(jobs_dir: Path, args: list[str]) -> None:
         print()
 
 
+# --- compare: paired per-task statistics -------------------------------------
+#
+# Everything below is deliberately stdlib and deterministic: a fixed seed means
+# the same job store always produces the same CI, so a report line can be
+# re-derived by anyone who has the results directory.
+
+
+def task_outcomes(jobs: list[dict]) -> dict[str, dict[str, list[float]]]:
+    """task -> agent -> [1.0 pass, 0.0 fail, None no-verdict] over every trial."""
+    out: dict[str, dict[str, list[float | None]]] = {}
+    for job in jobs:
+        for row in job["rows"]:
+            v = verdict(row)
+            value = None if v == "?" else (1.0 if v == "P" else 0.0)
+            out.setdefault(row["task"], {}).setdefault(row["agent"], []).append(value)
+    return out
+
+
+def task_rate(values: list[float | None]) -> float | None:
+    scored = [v for v in values if v is not None]
+    return sum(scored) / len(scored) if scored else None
+
+
+def _mean(xs: list[float]) -> float:
+    return sum(xs) / len(xs) if xs else 0.0
+
+
+def _percentile(sorted_xs: list[float], q: float) -> float:
+    if not sorted_xs:
+        return 0.0
+    pos = q * (len(sorted_xs) - 1)
+    lo, hi = int(pos), min(int(pos) + 1, len(sorted_xs) - 1)
+    return sorted_xs[lo] + (sorted_xs[hi] - sorted_xs[lo]) * (pos - lo)
+
+
+def cluster_bootstrap(values: list[float], iters: int, seed: int) -> tuple[float, float]:
+    """95 % CI for the mean of per-task values, resampling TASKS with replacement.
+
+    Resampling trials instead would shrink the interval by a factor of sqrt(k)
+    and claim precision the design does not have: repeats inside one task share
+    the task's difficulty.
+    """
+    import random
+
+    if not values:
+        return (0.0, 0.0)
+    rng = random.Random(seed)
+    n = len(values)
+    means = []
+    for _ in range(iters):
+        means.append(sum(values[rng.randrange(n)] for _ in range(n)) / n)
+    means.sort()
+    return (_percentile(means, 0.025), _percentile(means, 0.975))
+
+
+def mcnemar_exact(a_only: int, b_only: int) -> float:
+    """Two-sided exact McNemar p-value (binomial on the discordant cells)."""
+    from math import comb
+
+    n = a_only + b_only
+    if n == 0:
+        return 1.0
+    k = min(a_only, b_only)
+    tail = sum(comb(n, i) for i in range(k + 1)) / (2 ** n)
+    return min(1.0, 2 * tail)
+
+
+def agent_scores(outcomes: dict[str, dict[str, list[float | None]]]) -> dict[str, dict]:
+    agents = sorted({a for per_task in outcomes.values() for a in per_task})
+    scores = {}
+    for agent in agents:
+        rates = [r for r in (task_rate(per_task.get(agent) or []) for per_task in outcomes.values()) if r is not None]
+        no_verdict = sum(
+            1
+            for per_task in outcomes.values()
+            for v in (per_task.get(agent) or [])
+            if v is None
+        )
+        scores[agent] = {"tasks": len(rates), "score": _mean(rates), "rates": rates, "no_verdict": no_verdict}
+    return scores
+
+
+def pairwise(outcomes: dict[str, dict[str, list[float | None]]], agents: list[str], iters: int, seed: int) -> list[dict]:
+    pairs = []
+    for i, a in enumerate(agents):
+        for b in agents[i + 1 :]:
+            deltas, a_only, b_only = [], 0, 0
+            for per_task in outcomes.values():
+                ra, rb = task_rate(per_task.get(a) or []), task_rate(per_task.get(b) or [])
+                if ra is None or rb is None:
+                    continue
+                deltas.append(ra - rb)
+                if ra >= 0.5 and rb < 0.5:
+                    a_only += 1
+                elif rb >= 0.5 and ra < 0.5:
+                    b_only += 1
+            lo, hi = cluster_bootstrap(deltas, iters, seed)
+            pairs.append(
+                {
+                    "a": a,
+                    "b": b,
+                    "n": len(deltas),
+                    "delta": _mean(deltas),
+                    "lo": lo,
+                    "hi": hi,
+                    "a_only": a_only,
+                    "b_only": b_only,
+                    "p": mcnemar_exact(a_only, b_only),
+                }
+            )
+    return pairs
+
+
+def flip_rate(jobs: list[dict]) -> dict:
+    """How often the same (task, agent) changes verdict between otherwise identical jobs."""
+    seen: dict[tuple[str, str], list[str]] = {}
+    for job in jobs:
+        for row in job["rows"]:
+            seen.setdefault((row["task"], row["agent"]), []).append(verdict(row))
+    cells = {k: v for k, v in seen.items() if len(v) > 1}
+    flips = {k: v for k, v in cells.items() if len(set(v)) > 1}
+    return {"cells": len(cells), "flips": len(flips), "detail": flips}
+
+
+def cmd_compare(jobs_dir: Path, args: list[str]) -> None:
+    names, iters, seed, as_json = [], 10000, 0, False
+    for arg in args:
+        if arg == "--json":
+            as_json = True
+        elif arg.startswith("--iters="):
+            iters = int(arg.split("=", 1)[1])
+        elif arg.startswith("--seed="):
+            seed = int(arg.split("=", 1)[1])
+        else:
+            names.append(arg)
+    if not names:
+        sys.exit("usage: bench_report.py compare <job>... [--json] [--iters=N] [--seed=N]")
+
+    jobs = [load_job(jobs_dir, n) for n in names]
+    outcomes = task_outcomes(jobs)
+    scores = agent_scores(outcomes)
+    agents = sorted(scores, key=lambda a: -scores[a]["score"])
+    pairs = pairwise(outcomes, agents, iters, seed)
+    flips = flip_rate(jobs) if len(jobs) > 1 else None
+
+    total_attempts = sum(len(v) for pt in outcomes.values() for v in pt.values())
+    cells = sum(len(pt) for pt in outcomes.values())
+
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "jobs": names,
+                    "tasks": len(outcomes),
+                    "attempts_per_task": total_attempts / cells if cells else 0,
+                    "scores": {a: {"tasks": s["tasks"], "score": s["score"], "no_verdict": s["no_verdict"]} for a, s in scores.items()},
+                    "pairs": pairs,
+                    "flips": {"cells": flips["cells"], "flips": flips["flips"]} if flips else None,
+                },
+                indent=1,
+            )
+        )
+        return
+
+    print(f"### paired comparison — {len(jobs)} job(s), {len(outcomes)} tasks, {cells} cells, {total_attempts} trials (iters={iters}, seed={seed})")
+    print()
+    print("| agent | tasks | score | 95 % CI (task bootstrap) | no verdict |")
+    print("|---|---|---|---|---|")
+    for a in agents:
+        s = scores[a]
+        lo, hi = cluster_bootstrap(s["rates"], iters, seed)
+        print(f"| {a} | {s['tasks']} | {s['score'] * 100:.1f} % | {lo * 100:.1f}–{hi * 100:.1f} % | {s['no_verdict']} |")
+    print()
+    print("| pair | Δ (pts) | 95 % CI | discordant (> / <) | McNemar p |")
+    print("|---|---|---|---|---|")
+    for p in pairs:
+        # A CI that contains 0 is not a finding, whatever the point estimate says.
+        mark = "excludes 0" if (p["lo"] > 0 or p["hi"] < 0) else "includes 0"
+        print(
+            f"| {p['a']} − {p['b']} | {p['delta'] * 100:+.1f} pts · {mark} "
+            f"| {p['lo'] * 100:+.2f} … {p['hi'] * 100:+.2f} | {p['a_only']} / {p['b_only']} | {p['p']:.3f} |"
+        )
+    if flips:
+        pct = 100 * flips["flips"] / flips["cells"] if flips["cells"] else 0.0
+        print()
+        print(f"**flip rate:** {flips['flips']} of {flips['cells']} cells ({pct:.1f} %) changed verdict between identical jobs")
+        for (task, agent), vs in sorted(flips["detail"].items()):
+            print(f"- `{task}` · {agent}: {' → '.join(vs)}")
+    print()
+
 def cmd_json(jobs_dir: Path, args: list[str]) -> None:
     print(json.dumps([load_job(jobs_dir, name) for name in args], indent=2))
 
@@ -376,8 +572,11 @@ def cmd_json(jobs_dir: Path, args: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--jobs-dir", default=str(REPO / "results" / "jobs"))
-    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "json"))
+    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "json"))
     parser.add_argument("jobs", nargs="*", help="job names (all commands except `runs`)")
+    parser.add_argument("--json", action="store_true", help="compare: machine-readable output")
+    parser.add_argument("--iters", type=int, default=10000, help="compare: bootstrap iterations (default 10000)")
+    parser.add_argument("--seed", type=int, default=0, help="compare: bootstrap seed (default 0)")
     opts = parser.parse_args()
     jobs_dir = Path(opts.jobs_dir)
     if not jobs_dir.is_dir():
@@ -387,8 +586,12 @@ def main() -> int:
     else:
         if not opts.jobs:
             sys.exit(f"bench_report: `{opts.command}` needs at least one job name")
-        {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
-         "json": cmd_json}[opts.command](jobs_dir, opts.jobs)
+        if opts.command == "compare":
+            extra = [f"--iters={opts.iters}", f"--seed={opts.seed}"] + (["--json"] if opts.json else [])
+            cmd_compare(jobs_dir, opts.jobs + extra)
+        else:
+            {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
+             "json": cmd_json}[opts.command](jobs_dir, opts.jobs)
     return 0
 
 
