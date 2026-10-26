@@ -17,9 +17,9 @@ and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
 | | |
 |---|---|
-| Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories |
+| Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories. The run history and matrix below stay on that subset for continuity; 24-task rounds ([`docs/tb2-subset-24.txt`](tb2-subset-24.txt)) are recorded in their own section |
 | Model | `opencode-go/deepseek-v4.1-flash` (zen key, `OPENCODE_API_KEY`) for the two v0.7.10 rows of 10-25; **every earlier row ran `glm-5.3-flash`**, which was the default until then. The 10-25 glm leg⁴ is the controlled cross-check at the same release and budget, and the 10-18 cell slice used deepseek as its second leg. |
-| moca | `--mode yolo`, `context.maxSteps = 250` from the v0.7.10 round (**100 for every row before it**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
+| moca | `--mode yolo`, `context.maxSteps = 250` for the v0.7.10 rows and both one-variable legs of 10-25 (**100 for every row before those**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |
 | Scoring | the task's own verifier; PASS = reward ≥ 1, FAIL = 0.0, `?` = the verifier produced **no verdict** (an exception), which is never folded into FAIL |
 
 Reproduce one round:
@@ -53,6 +53,7 @@ Two rules this report follows, learned the hard way:
 | v0.7.10² | 10-25 | `…20261025-014057-1313816` | **11/12** | $0.2142 | 8.42 M | $0.0195 | 770 K | 7.9 min | — |
 | v0.7.10³ | 10-25 | `…20261025-100949-2263993` | **11/12** | $0.1826 | 8.54 M | **$0.0166** | 780 K | 8.8 min | — |
 | v0.7.10⁴ | 10-25 | `…20261025-144052-3000856` | 9/12 | $0.4287 | 9.05 M | $0.0476 | 1.01 M | 10.1 min | 1 × a-timeout, 1 × v-timeout |
+| v0.7.4⁵ | 10-25 | `…20261025-154917-3107095` | 7/12 | $0.2039 | 3.87 M | $0.0291 | 0.55 M | 10.7 min | — |
 
 ¹ Understated: `cobol-modernization` was killed by the 900 s agent cap before moca wrote its
 session, so that trial reports 0 tokens. Treat v0.6.2's figures as a floor.
@@ -68,6 +69,8 @@ cheapest round on record. Details in the reproducibility paragraph below.
 instead of deepseek: the arm that separates the model from the release and the budget.
 `cobol-modernization` hit the 900 s agent cap after 169 turns (its token total is therefore
 a floor); `filter-js` produced no verdict again. See the attribution section.
+⁵ **The budget leg, 2026-10-25 15:49** — v0.7.4 at 250 steps, still glm: the last arm of the
+decomposition (budget alone, release and model held fixed). See the attribution section.
 
 **v0.6.5 was not benched** — docs-only by construction (no agent-loop change), so it carries
 no row. That makes the current pin (v0.7.10) a **six-release jump** from the last
@@ -160,6 +163,8 @@ models are used where the question is "is this the model or the agent?".
 | 10-22 | v0.7.4 | db-wal × 3 | **3/3** at 7–14 requests, $0.0176 | `…155632-1217193` | $0.018 |
 | 10-22 | v0.7.4 | custom-memory × 3 @ 150 | **2/3** — passes at 16 and 36 requests; the third burned all 151 | `…155652-1219888` | $0.337 |
 | 10-25 | v0.7.10 | mailman, custom-memory, cobol, filter-js × 3 @ 250 | **mailman 3/3**, **custom-memory 3/3**, **cobol 3/3**; filter-js **0/3 scored** (2 × verifier timeout, 1 fail) | `…033114-1747413` | $0.370 |
+| 10-25 | v0.7.10 | the 24-set's five losses + `log-summary` canary × 3 @ 250 | **configure-git 0/3**, **dna-assembly 0/3**, **large-scale 1/3**, **sanitize-git 1/3**, **overfull-hbox 3/3**; canary 3/3 | `…221348-209862` | $0.263 |
+| 10-25 | v0.7.4 | build-cython, extract-elf, log-summary, custom-memory × 3 @ 250, glm | **extract-elf 3/3**, **log-summary 3/3**, build-cython **2/3**, custom-memory **2/3** (one attempt burned 246 turns / 12.8 M tokens / $0.4348 and still passed) | `…165250-3205787` | $0.821 |
 
 What the cell runs settled, and the rules that came out of them:
 
@@ -179,6 +184,15 @@ What the cell runs settled, and the rules that came out of them:
   slice (3/3 on three cells where glm was 2/3). A second serving family is a free validity
   check on any single-cell claim.
 - **A cell run is cheap.** The 2026-10-22 slice cost $0.354, 89 % of it the one capped flail.
+
+- **A one-attempt cell claim is worth nothing until it repeats.** Leg D (v0.7.4 at 250 with glm)
+  scored 7/12 and lost `extract-elf` and `log-summary-date-ranges`, which read as "the budget lets
+  glm wander into cells that passed at 100". Re-running D's four cells at D's exact settings:
+  **10/12**, with `extract-elf` 3/3 in 9–10 turns and `log-summary` 3/3 in 3–6. D was a bad draw;
+  the claim was written into this report and is now retracted.
+- **What the budget does buy is tail cost.** One `custom-memory` attempt at 250 steps spent
+  **246 turns, 12.8 M tokens and $0.4348** — 63× the cheap attempt — and still passed. Extra room
+  does not make glm more accurate; it makes a non-stopping model more expensive.
 
 - **The three moved cells are reproducible at the new settings, 3/3 each.** mailman (0-for-5
   in rounds), custom-memory (2/3 at 150, failed at 100) and cobol (a 900 s cap loss at v0.6.3)
@@ -206,39 +220,52 @@ What the cell runs settled, and the rules that came out of them:
 - **Token floors.** Timeouts report 0 tokens (v0.6.2). Never headline a timeout-heavy round
   as the cheaper one.
 
-## Attribution — which knob earned the three cells
+## Attribution — what the legs support, and what they do not
 
 The 10-25 round moved three things at once (release v0.7.4 → v0.7.10, model `glm` → `deepseek`,
-budget 100 → 250), so the reports credited none of them. The glm leg⁴ supplies the missing arm:
+budget 100 → 250). Two one-variable legs split the hop into three, and the first reading of them
+was wrong — the cell run caught it:
 
 | leg | release | model | steps | score | $/solved |
 |---|---|---|---|---|---|
 | **A** 10-22 (`…20261022-143907-1093976`, pruned) | v0.7.4 | glm | 100 | 8/12 | $0.0524 |
+| **D** 10-25 (`…20261025-154917-3107095`) | v0.7.4 | glm | 250 | 7/12 | $0.0291 |
 | **C** 10-25 (`…20261025-144052-3000856`) | v0.7.10 | glm | 250 | 9/12 | $0.0476 |
 | **B** 10-25 (both deepseek runs) | v0.7.10 | deepseek | 250 | 11/12 | $0.0166–0.0195 |
 
-**A → C (release + budget, model fixed): +1 net — and the net hides movement both ways.**
-The three cells A was stuck on convert — `custom-memory-heap-crash`, `db-wal-recovery`,
-`mailman` — while two cells A passed regress: `cobol-modernization` (900 s agent timeout after
-169 turns) and `build-cython-ext` (wrong answer after 68 turns). More room helped the cells
-that needed it and hurt the ones where glm keeps going.
+**The retraction.** Leg D lost `extract-elf` and `log-summary-date-ranges`, so the obvious story
+was "250 steps let glm wander into cells that passed at 100". Re-running D's four cells at D's
+exact settings, three attempts each:
 
-**C → B (model only): +2, and it recovers exactly the two cells the budget broke.** Nothing
-regresses, and the run costs one-fifth as much per solved task ($0.0166 vs $0.0476).
+| cell | leg D (1 attempt) | 3 attempts at D's settings |
+|---|---|---|
+| `extract-elf` | ❌ | **3/3** (9–10 turns) |
+| `log-summary-date-ranges` | ❌ | **3/3** (3–6 turns) |
+| `build-cython-ext` | ❌ | **2/3** |
+| `custom-memory-heap-crash` | ✅ | **2/3** |
 
-So the +3 over v0.7.4 decomposes as **two cells from the model and one net from release +
-budget**. The mechanism is not "more steps is better" but "more steps is better for a model
-that stops" — which is why the step-budget change looked inert in the 10-18 slice and passed
-for useful at 250.
+Ten of twelve, two of them on cells that finish in single-digit turns. D's 7/12 was a low draw.
+The per-knob split that this section carried for one round — "budget −1, release +2, model +2" —
+is **withdrawn**: at one attempt per leg, a leg moves ±2–3 cells on a twelve-cell set, and both of
+D's "regressions" dissolved the moment they were repeated. The arithmetic (8 → 7 → 9 → 11)
+still adds up; it just does not mean what it looked like.
 
-**What is still bundled:** release and budget move together in A → C. One more leg separates
-them — v0.7.4 at 250 steps (the adapter speaks the old dialect) or v0.7.10 at 100 — ~$0.2 and
-40 minutes. Until it runs, the honest name for that +1 is "release + budget, net", not
-"release".
+**What the legs do support:**
 
-Caveats, stated because they bound the claim: one attempt per leg; the cell diagnostics tested
-the moved cells at 250/deepseek, not at glm/250 or at 100; and `cobol` in leg C is a timeout,
-so its token total is a floor.
+- **The model's economics are the one unambiguous result.** deepseek holds 11/12 twice with an
+  identical cell pattern at $0.0166–$0.0195/solved; glm sits at 9/12 and $0.0476, and its losses
+  in these legs include cells a competent run finishes in single-digit turns. If the release and
+  budget explain any of the gain, the model still explains the cheapness and the steadiness.
+- **The budget's visible effect is on the tail, not the mean.** The 3× cell run's worst attempt
+  took **246 turns, 12.8 M tokens and $0.4348** for one pass at `custom-memory` — 63× the cheap
+  attempt. Extra room is not accuracy for a model that keeps working; it is invoice.
+- **The endpoint is solid even though the middle is soft.** 8/12 at v0.7.4/glm/100 versus 11/12
+  at v0.7.10/deepseek/250, measured twice at the second endpoint and identical both times.
+
+**What it would take to split the knobs for real:** three attempts per leg — 2 legs × 36 trials,
+≈ $1.6 and ~4 h at glm prices — and the legs must hold the third knob fixed. Until someone spends
+that, this report carries the total and the model's economics, and credits the budget with
+nothing.
 
 ## Screening sweep — 2026-10-25, the tasks this bench had never run (moca only)
 
@@ -292,78 +319,86 @@ grinding (`dna-assembly` 45 turns/$0.082, `sanitize-git-repo` 943 K tokens, `cra
 Expected moca score there is ~18–20/24 — headroom a fix can actually move, which the 12-task
 set no longer has.
 
+## 24-task set — two identical runs (2026-10-25: 18/24, 2026-10-26: 19/24)
+
+The screening sweep produced an instrument with headroom: `docs/tb2-subset-24.txt` is the fixed
+12 plus the five screening failures and seven cells that only passed by grinding. It has now been
+run twice with all four agents, identical pins and one attempt per cell per run —
+`cab-subset-20261025-174057-3299781` (4 h 07 m) and `cab-subset-20261026-134414-1158148` (4 h 37 m),
+$1.54 and $1.53 zen cash plus $10.54 / $10.31 Claude-equivalent:
+
+| agent | run 1 | run 2 | pooled |
+|---|---|---|---|
+| **Claude Code** 2.1.310 | 21/24 | **23/24** | **44/48** |
+| Pi 1.4.0 | 20/24 | 20/24 | 40/48 |
+| OpenCode 2.1.4 | 20/24 | 19/24 | 39/48 |
+| **moca** v0.7.10 | 18/24 | 19/24 | **37/48** |
+
+**The ordering reproduced; the cells did not.** moca is last in both runs and Claude first in
+both, but **13 of 96 cells changed verdict between two identical runs (13.5 %)** — the 12-task
+hold study flipped 3/48 (6 %), so the harder cells are twice as unstable. On the original twelve
+moca is 11/12 in both runs; the twelve added cells are where everything moves (moca 7/12 then
+8/12).
+
+### What moca actually loses, over every sample
+
+| cell | moca's samples | pass rate | verdict |
+|---|---|---|---|
+| `configure-git-webserver` | screen, run 1, run 2, 3× cell run | **0/6** | **structural — the only stable defect** |
+| `large-scale-text-editing` | screen, run 1, run 2, 3× cell run | 1/6 | near-structural (`wq` vs `:wq`) |
+| `overfull-hbox` | screen, run 1, run 2, 3× cell run | 3/7 | coin flip — the 3× run passed 3/3 |
+| `sanitize-git-repo` | screen, run 1, run 2, 3× cell run | 3/6 | coin flip |
+| `dna-assembly` | screen, run 1, run 2, 3× cell run | 2/6 | coin flip **for all four agents** |
+| `dna-insert` | screen, run 1, run 2 | 1/3 | coin flip |
+| `filter-js-from-html` | every run of the bench | never passed | task-side, byte-exact test |
+
+Two of this section's earlier readings are **withdrawn**:
+
+- **`dna-assembly` is not a moca capability gap.** moca passed it in run 2 while Pi failed it; over
+  the samples OpenCode is 0/2, Pi 1/2, Claude 1/2, moca 2/6. It is a hard cell for everybody.
+- **`overfull-hbox` is not a constraint-compliance defect.** It passes 3/3 in a cell run and 3/7
+  overall — the screening and run-1 failures were variance, and so was the "literal-constraint
+  defect class" built on it and `large-scale`.
+
+### What is left, measured
+
+**One fix target: `configure-git-webserver`, 0/6.** The server never answers the URL the verifier
+fetches (`test_hello_html_exists` → HTTP 404) and moca closes the task with a success claim every
+time. Claude Code passes it 2/2 and Pi 1/2; OpenCode is 0/2. That is a verification habit, not a
+capability wall — and it is the only cell in the whole 24-task set where moca has never passed.
+
+**`large-scale-text-editing` (1/6) is the second candidate** — the script ends with `wq` instead of
+`:wq`, i.e. the stated instruction is read and then dropped. It passes once, so a fix has to be
+validated with a 3-attempt cell run, not a single trial.
+
+**Everything else in the loss column is noise** at this sample size, and the honest summary is
+that moca's 37/48 sits 2–3 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code
+(44/48), with overlapping confidence intervals at 48 trials. The ranking reproduced in direction,
+not in precision.
+
 ## Summary — where v0.7.10 stands, against every earlier release
 
-**Accuracy.** **11/12**, the best any release has scored on this subset: one cell above the
-previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round (v0.7.4,
-8/12). The only loss is `filter-js-from-html`, which no agent and no model has ever passed —
-on the eleven passable cells moca is **11/11**, and for the first time it is not the agent
-that drops cells its competitors solve.
+**Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
+above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
+(v0.7.4, 8/12). The only loss is `filter-js-from-html`, which no agent and no model has ever
+passed, so on the eleven passable cells moca is **11/11**. That is a *ceiling*, not a win: on the
+24-task set the same build is 18/24 and 19/24, behind every competitor — see below.
 
 The number is real, and it is **not attributable**. Three knobs moved together: release
 (v0.7.4 → v0.7.10, six releases), model (`glm-5.3-flash` → `deepseek-v4.1-flash`) and step
-budget (100 → 250). The cell run above rules out variance on the cells that moved (3/3 each),
-so the open question is *which* change earned the cells, not whether they were won.
+budget (100 → 250). The one-variable legs were run and then **retracted**: at one attempt each
+they move ±2–3 cells on twelve, so no per-knob split survives. What stands is the endpoint
+(8/12 → 11/12, the 11/12 measured twice), the model's economics, and the budget's tail cost —
+details in the attribution section, which states what a real split would cost.
 
-**The subset is spent as an instrument.** It cannot show an improvement any more — moca
-passes 11/11 of the passable cells, so the ceiling is today's score. The screening sweep
-above is where a fix will show up first; the 24-task set it produced is the comparison to
-run after the next release.
-
-**Reproducibility.** The round was repeated end-to-end at identical settings (`…100949-2263993`,
-2 h 09 m): **11/12 again**, the same cell lost, **22/24** across the pair. 45 of the 48 cells
-came back with the same verdict, and all three flips were in the other agents' columns
-(Claude Code gained `extract-elf` and `fix-git`; OpenCode lost `kv-store-grpc`) — moca's
-column was identical from top to bottom. The second run was also the cheapest on record:
-$0.0166/solved, under v0.6.1's $0.0182.
-
-**Efficiency.** $0.0195/solved is the second-cheapest round ever — 2.7× cheaper than v0.7.4
-($0.0524) and behind only v0.6.1 ($0.0182). Token volume, 770 K/solved, is still 1.9×
-v0.6.1's 415 K: the remaining cost is prompt volume rather than step count, and 250 steps
-did not explode it (slowest trial 7.9 min, well inside the 900 s cap).
-
-**What the previous rounds got wrong, in hindsight.** v0.7.4's summary blamed its two losses
-on variance and on a search-space gap, and proposed no budget change. At 250 steps with
-deepseek both cells are 3/3, and mailman — the cell called "a ~50–70 % model-behaviour cell"
-and later "has not passed in a round since v0.3.0" — is 3/3 too. The old read was correct for
-its own settings and wrong as a general claim: the budget and the serving model both bind, and
-neither was varied alone before.
-
-**Potential issues, in priority order**
-
-1. **Attribution is now decomposed, with one seam left.** The glm leg puts two of the three
-   cells on the model and one on release + budget (net, with two cells moving each way), see the
-   attribution section. The seam is release versus budget inside that +1: one more leg —
-   v0.7.4 at 250, or v0.7.10 at 100 — closes it for ~$0.2 and 40 minutes.
-2. **`filter-js-from-html` is a broken cell, not a hard one.** 0/17 across four agents and two
-   models; today, two of three attempts never produced a verdict because the verifier hung, and
-   the scored one failed a byte-exact comparison against parser re-serialisation. Carrying it in
-   the denominator understates every agent by one cell.
-3. **The mailman rule is no longer testable and may be obsolete.** It passed 3/3 without any
-   new rule — the budget/model change did the work, or the run simply did the delivery. Keep
-   the rule (it costs nothing) but stop citing it as the reason the cell passes.
-4. **Token volume is the remaining efficiency gap.** 770 K tok/solved against v0.6.1's 415 K, at
-   a similar pass count. That is a prompt/context question (cache reads dominate), not a step
-   question, and it is where the next 2× sits.
-5. **The noise is in the other agents' columns, not moca's.** Two full runs put moca at 11/12
-   with an identical cell pattern; the three flips in the pair were Claude Code (2 up) and
-   OpenCode (1 down). So a release claim still needs the repeat — but on this subset the
-   benchmark now has an agent whose score is stable enough to detect a one-cell change.
-
-**Proposed actions for the next moca version (and the rounds around it)**
-
-1. **Run the attribution leg** (§1 above) before crediting v0.7.10's changes with anything:
-   the same 12 tasks, one variable moved, 1 attempt. Report it as a delta against today's row,
-   not against the glm history.
-2. **Drop `filter-js` from the denominator.** Report `11/11` beside the raw `11/12`, and keep
-   the cell in the task list only as a known-broken marker until the task's test is fixed.
-3. **Keep 250 steps.** It cost nothing per solved task in this round and converted the two
-   cells that 100 and 150 could not. Re-check it against v0.6.1's efficiency only in the
-   attribution leg, where the model is held fixed.
-4. **Stop writing rules for mailman and custom-memory** until one regresses at these settings;
-   if one does, run the 3 × cell slice before touching a prompt rule.
-5. **Rebaseline the cross-agent comparison** on the 10-25 sweep (`docs/agents-bench-report.md`);
-   the 2026-10-16 glm table is history now, and its ranks do not transfer.
+**The 12-task subset is spent as an instrument; the 24-task set is the live one.** Two identical
+runs put moca at 18 and 19 of 24 — last in both, 2–3 cells behind Pi and OpenCode and 7 behind
+Claude Code, still 22× cheaper per solved task. The cell-level picture is much narrower than the
+score suggests: **`configure-git-webserver` (0/6) is the only cell moca has never passed**, with
+`large-scale-text-editing` (1/6) as the second candidate. Three separate cell-level claims in this
+report's history turned out to be noise (the budget's regressions, the literal-constraint class,
+`dna-assembly` as a capability gap) — every one of them was caught by repeating the cells before
+acting on them, which is the standard this report now holds itself to.
 
 ## Update procedure
 

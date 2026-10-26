@@ -14,13 +14,104 @@ cross-agent view; the release-by-release moca history is in
 
 | | |
 |---|---|
-| Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) |
+| Dataset | `terminal-bench@2.0`. Two instruments: the fixed 12-task subset ([`docs/tb2-subset-12.txt`](tb2-subset-12.txt), all rows before 2026-10-25 17:40) and the 24-task comparison set ([`docs/tb2-subset-24.txt`](tb2-subset-24.txt) — those 12 plus 12 cells chosen from the screening sweep). The 24-task run is the current baseline |
 | Models | moca / OpenCode / Pi: `opencode-go/deepseek-v4.1-flash` from 2026-10-24 (`opencode-go/glm-5.3-flash` was the default before — the rows below ran glm). Claude Code: `anthropic/claude-sonnet-5` — it cannot use a zen key, by design |
 | Permissive modes | moca `--mode yolo`, OpenCode `--auto`, Claude Code `bypassPermissions` |
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 2026-10-25, four agents (run 1 of 2, 48 trials, 1 h 50 m)
+## Headline — 24-task set, two identical runs (192 trials)
+
+Two runs of the 24-task set, same pins, same models, same 250-step budget, one attempt per cell
+per run: `cab-subset-20261025-174057-3299781` (4 h 07 m) and `cab-subset-20261026-134414-1158148`
+(4 h 37 m), $1.54 and $1.53 zen cash, $10.54 and $10.31 Claude API-equivalent.
+
+| agent | run 1 | run 2 | pooled | 95 % CI (pooled) | $/solved (run 2) |
+|---|---|---|---|---|---|
+| **Claude Code** 2.1.310 | 21/24 | **23/24** | **44/48** | 80–97 % | $0.4483 eq |
+| **Pi** 1.4.0 | 20/24 | 20/24 | 40/48 | 70–91 % | $0.0238 |
+| **OpenCode** 2.1.4 | 20/24 | 19/24 | 39/48 | 68–90 % | $0.0308 |
+| **moca** v0.7.10 | 18/24 | 19/24 | **37/48** | 63–87 % | $0.0249 |
+
+**The ordering reproduced.** moca is last in both runs and Claude Code first in both, and the
+pooled gaps are 7 cells to Claude and 2–3 to Pi and OpenCode. The 12-task set again saturated
+inside both runs — 11/12 for all four, only `filter-js` lost — so the separation is still entirely
+in the twelve added cells.
+
+**But the instrument is noisy: 13 of 96 cells changed verdict between two identical runs (13.5 %).**
+The 12-task hold study flipped 3 of 48 (6 %); the harder cells are twice as unstable.
+
+| cell | agent | run 1 → run 2 |
+|---|---|---|
+| `configure-git-webserver` | Pi | ❌ → ✅ |
+| `dna-assembly` | moca, Claude | ❌ → ✅ |
+| `dna-assembly` | Pi | ✅ → ❌ |
+| `dna-insert` | moca | ✅ → ❌ |
+| `dna-insert` | Claude | ❌ → ✅ |
+| `filter-js-from-html` | moca | ❌ → ⏱ (no verdict, task-side cell) |
+| `gcode-to-text` | Pi | ✅ → ❌ |
+| `large-scale-text-editing` | OpenCode | ✅ → ❌ |
+| `large-scale-text-editing` | Pi | ❌ → ✅ |
+| `overfull-hbox` | OpenCode | ❌ → ✅ |
+| `sanitize-git-repo` | moca | ❌ → ✅ |
+| `sanitize-git-repo` | OpenCode | ✅ → ❌ |
+
+### What survives at cell level
+
+**Exactly one cell is a stable defect: `configure-git-webserver`.** moca has never passed it —
+0/6 across the screening sweep, both runs and a 3-attempt cell run — while Claude Code is 2/2 and
+Pi 1/2. OpenCode is 0/2 there as well, so it is hard for two of four agents, not a moca-only wall.
+
+**Everything else that looked like a finding was noise:**
+
+| cell | moca across all samples | reading |
+|---|---|---|
+| `configure-git-webserver` | **0/6** | structural — the only one |
+| `large-scale-text-editing` | 1/6 | near-structural, `wq` vs `:wq` |
+| `overfull-hbox` | 3/7 | coin flip; the 3× cell run passed 3/3 |
+| `sanitize-git-repo` | 3/6 | coin flip |
+| `dna-assembly` | 2/6 | coin flip **for all four agents** (OpenCode 0/2, Pi 1/2, Claude 1/2) |
+| `dna-insert` | 1/3 | coin flip |
+| `filter-js-from-html` | never passed in any run (0/25 in the 12-task hold study) | task-side, byte-exact test |
+
+So this report's earlier claims about `dna-assembly` being a moca capability gap, and about a
+"literal-constraint defect class" made of `large-scale` + `overfull`, are both withdrawn: the
+first is a hard cell for everybody, the second is built on the two least stable cells in the set.
+
+### Per-task matrix, both runs (✅ run 1 · ❌ run 1)
+
+| task | moca | opencode | pi | claude-code |
+|---|---|---|---|---|
+| break-filter-js-from-html | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| build-cython-ext | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| circuit-fibsqrt | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| cobol-modernization | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| configure-git-webserver | ❌❌ | ❌❌ | ❌✅ | ✅✅ |
+| crack-7z-hash | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| custom-memory-heap-crash | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| db-wal-recovery | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| dna-assembly | ❌✅ | ❌❌ | ✅❌ | ❌✅ |
+| dna-insert | ✅❌ | ✅✅ | ✅✅ | ❌✅ |
+| extract-elf | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| filter-js-from-html | ❌⏱ | ❌❌ | ❌❌ | ❌❌ |
+| fix-git | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| gcode-to-text | ✅✅ | ✅✅ | ✅❌ | ✅✅ |
+| git-multibranch | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| kv-store-grpc | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| large-scale-text-editing | ❌❌ | ✅❌ | ❌✅ | ✅✅ |
+| log-summary-date-ranges | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| mailman | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| multi-source-data-merger | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| nginx-request-logging | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| overfull-hbox | ❌❌ | ❌✅ | ✅✅ | ✅✅ |
+| password-recovery | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| sanitize-git-repo | ❌✅ | ✅❌ | ❌❌ | ✅✅ |
+
+Legend: first mark = run 1, second = run 2 · ⏱ = no verdict (task-side verifier timeout).
+Per-trial seconds and turns for run 1 are in the run-1 job's `result.json`; the aggregate
+efficiency table is above.
+
+## Headline — 2026-10-25, 12-task set (run 1 of 2, 48 trials, 1 h 50 m) — superseded by the 24-task baseline
 
 Every pin moved since the 10-16 sweep and the three zen agents changed model, so this table is
 a **new baseline**, not a delta on the one below it. Same 12 tasks, 1 attempt, same sandbox,
@@ -112,17 +203,21 @@ The 10-25 sweep switched the three zen agents from `glm-5.3-flash` to `deepseek-
 while every pin also moved, which is why its table is labelled a new baseline. A moca-only leg
 isolates the model at fixed release and budget (v0.7.10, 250 steps, same 12 tasks):
 
-| moca leg | model | score | $/solved |
+| moca leg | model | steps | score |
 |---|---|---|---|
-| v0.7.4 / 100 steps | glm-5.3-flash | 8/12 | $0.0524 |
-| v0.7.10 / 250 steps | glm-5.3-flash | 9/12 | $0.0476 |
-| v0.7.10 / 250 steps | deepseek-v4.1-flash | **11/12** | **$0.0166–0.0195** |
+| v0.7.4 | glm-5.3-flash | 100 | 8/12 |
+| v0.7.4 | glm-5.3-flash | 250 | 7/12 → **10/12** when its four cells were repeated 3× |
+| v0.7.10 | glm-5.3-flash | 250 | 9/12 |
+| v0.7.10 | deepseek-v4.1-flash | 250 | **11/12** (twice, identical cells) |
 
-Release + budget together are worth +1 net (three cells convert, two regress); the model is
-worth +2 and recovers exactly the two the extra budget broke. Read the cross-agent table with
-that in mind: the jump from the 10-16 rows is mostly a **model** change, not an agent change —
-which is also the fairest reading of OpenCode's and Pi's gains. Full decomposition and caveats
-in [`docs/moca-bench-report.md`](moca-bench-report.md#attribution--which-knob-earned-the-three-cells).
+The single-attempt legs **cannot** split the +3: the 250-step glm leg lost two cells that repeated
+3/3 and 3/3 at its own settings, i.e. a leg moves ±2–3 cells on a twelve-cell set. What survives
+is the endpoint (8/12 → 11/12), the model's steadiness (two identical runs) and its economics
+(one-fifth the cost per solved task), and the budget's tail-cost effect (one 246-turn, $0.43
+attempt). Read the cross-agent table with that in mind: the jump from the 10-16 rows is mostly a
+**model** change, not an agent change — which is also the fairest reading of OpenCode's and Pi's
+gains. Full detail, including the retraction, in
+[`docs/moca-bench-report.md`](moca-bench-report.md#attribution--what-the-legs-support-and-what-they-do-not).
 
 ## Headline — 2026-10-16, four agents (superseded: glm at 100 steps)
 
@@ -233,13 +328,17 @@ same task in 45 s the week before. `filter-js` is the other loss.
 
 ## What would make this report current
 
-1. **Done — the 2026-10-25 sweep replaced the 10-16 snapshot.** The next thing worth running is
-   an attribution leg, not another sweep: one agent at a time, one knob moved (v0.7.10 at
-   `glm-5.3-flash`, or v0.7.4 at deepseek), on the same 12 tasks. Nothing in the current table
-   says which of pin/model/budget produced the +3 cells.
-2. **Keep the moca-only rounds out of this table.** They are a release history, not a
+1. **Repeat the 24-task sweep unchanged.** It is the current baseline and it was measured once.
+   At n=24 with one attempt the four CIs overlap, so the ordering (Claude 21, OpenCode/Pi 20,
+   moca 18) is directional; a second unchanged run is what turns it into a ranking — and on the
+   12-task set a repeat moved three cells between agents.
+2. **Cell-run moca's five real losses** (`configure-git-webserver`, `dna-assembly`,
+   `large-scale-text-editing`, `overfull-hbox`, `sanitize-git-repo`) at `N_ATTEMPTS=3` before any
+   fix is written: three of them reproduced a screening failure exactly, two of the screening
+   failures did not reproduce at all, so single-attempt cell verdicts are not yet trustworthy.
+3. **Keep the moca-only rounds out of this table.** They are a release history, not a
    comparison; mixing them would silently compare different dates.
-3. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
+4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
    verdict — at n=12 a single flip is inside the noise band.
 
 ## Update procedure
