@@ -387,9 +387,18 @@ went into the transcripts and the task's own verifier, and moca's behaviour is t
 task-side list, and moca is not credited with a defect for failing it — nor is Claude credited with
 a pass for gaming it. Every other cell in moca's loss column is a coin flip.
 
-**`large-scale-text-editing` (1/6) is therefore the only candidate left** — the script ends with
-`wq` instead of `:wq`, i.e. the stated instruction is read and then dropped. It passes once, so a
-fix has to be validated with a 3-attempt cell run, not a single trial.
+**`large-scale-text-editing` (1/6) is the only candidate left — and it is real, but narrow.**
+Its verifier is honest: it walks every line of `/app/apply_macros.vim` against the allowed
+command list, runs it headless, generates `expected.csv` *after* the run (so the agent cannot
+copy the answer) and compares SHA-256. The instruction enumerates the allowed commands, and the
+exit line must be `:wq` or `:x`.
+
+moca's five failing scripts all end with a bare `wq`; the one that passed ends with `:wq`. Claude
+Code's passes end in `:x`, OpenCode's in `:wq`. In a `vim -S` script `wq` and `:wq` are the same
+Ex command, so this is not a Vim skill gap — it is **literal compliance with an enumerated
+syntax list**, and the verifier rejects the form the spec did not list. That is a legitimate (if
+pedantic) instruction-following test, not a task-side defect, and it is the only reproducible
+moca behaviour the 24-task set has left: **1/6, one missing colon.**
 
 **Net: the 24-task set currently contains no reproducible moca defect.** moca's 37/48 sits 2–3
 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code (44/48), with overlapping
