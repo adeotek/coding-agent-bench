@@ -17,6 +17,7 @@ test: ## harness unit tests: moca run line + session mirror, report parsers, har
 	python3 test/bench_report_steps_test.py
 	python3 test/bench_report_compare_test.py
 	python3 test/bench_report_report_test.py
+	python3 test/bench_report_audit_test.py
 	python3 test/bench_pin_guard_test.py
 
 probe: ## live credential probes (one tiny request per agent)
@@ -44,6 +45,9 @@ full: ## run full Terminal-Bench 2.0 (expensive: time, tokens, disk)
 
 render: ## render the effective config to results/ and print its path
 	./scripts/bench.sh render $(or $(ARGS),subset)
+
+audit: ## oracle/nop task-quality audit over docs/tb2-all.txt (no tokens; drops batch images)
+	./scripts/audit.sh $(or $(TASKS),docs/tb2-all.txt)
 
 report: ## tables from results/jobs: ARGS="runs|summary <job>|matrix <job>…|compare <job>…"; JOBS="<job>…" regenerates docs/bench-latest.md
 	@if [ -n "$(JOBS)" ]; then \

@@ -28,6 +28,7 @@ make help                    # list targets
 make setup                   # uv tool install harbor==$HARBOR_VERSION + docker check
 make test                    # harness unit tests (5 suites): moca run line, report parsers, pin guard
 make doctor                  # docker, harbor, adapter import, credential presence
+make audit                   # oracle+nop over docs/tb2-all.txt: no tokens, batches + image cleanup
 make doctor ARGS=--probe     # + one live request per agent (cents; needs .env)
 make dry-run ARGS=smoke      # validate config + import path + kwargs + credentials — no pulls, no tokens
 bash -n scripts/bench.sh && python3 -m py_compile scripts/render_config.py
@@ -59,6 +60,13 @@ make -n <target>             # show what a target would run, without running it
   `make screen BATCH=N` (moca only, 1 attempt). This is the failure corpus: the 12-task subset is
   saturated, so hardening comes from cells moca drops here — read it with `bench_report.py steps`.
 - **`docs/moca-bench-report.md` + `docs/agents-bench-report.md`** — the two tracking reports. **Update both in the same commit as any run**: add the row/column, re-derive the matrix, write the per-cell diagnosis, and refresh the moca report's closing summary (latest release vs all previous, open issues, actions for the next release). Keep every earlier run in place — the reports are the run history, not a snapshot.
+- **`scripts/audit.sh` + `render_config.py audit` profile** — Harbor's `oracle` (must pass) and
+  `nop` (must fail) over `docs/tb2-all.txt`. `audit.sh` batches the run and `docker rmi`s each
+  batch's images except the 24-task comparison set's, because 89 images do not fit in this
+  host's free space. `bench_report.py audit` classifies: healthy / broken-task (oracle fails) /
+  vacuous (nop passes) / both-broken / no-verdict / unknown. **`no-verdict` is never folded into
+  a side** — an infrastructure failure is not a task-quality verdict. A task-side entry in
+  `docs/task-side.json` should cite an audit row or a transcript.
 - **`scripts/manifest.py`** — `bench.sh run` calls `start` before launching Harbor and `finish`
   after it, so every job directory carries `manifest.json`: harbor version + interpreter, repo
   commit/branch/dirty, dataset + task-list fingerprint, agents with model ids and versions, the

@@ -17,6 +17,7 @@ Usage
   scripts/bench_report.py export <job>...      summary.json per job (trials + manifest + aggregates)
   scripts/bench_report.py report <job>...      generated markdown (leaderboard, matrix, verdicts)
   scripts/bench_report.py diff <job> <task>    per-agent behaviour diff for one cell
+  scripts/bench_report.py audit <job>...       oracle/nop task-quality audit
   scripts/bench_report.py json <job>...        raw rows (for ad-hoc analysis)
 
 Rewards are read from `verifier_result.rewards.reward` (a dict — reading
@@ -925,6 +926,109 @@ def cmd_diff(jobs_dir: Path, args: list[str]) -> None:
         )
     print()
 
+# --- audit: is every task a task? -------------------------------------------
+#
+# `oracle` must pass (the reference solution works as specified) and `nop` must
+# fail (doing nothing cannot satisfy the verifier). Anything else is a task-side
+# finding, and the distinction matters:
+#   oracle fails  -> broken task or broken reference solution
+#   nop passes    -> vacuous verifier
+#   no verdict    -> the trial never produced one; an infrastructure fact, not a
+#                    task quality verdict, so it is reported separately.
+
+
+def audit_rows(jobs: list[dict]) -> dict[str, dict[str, dict]]:
+    """task -> agent -> row, from audit jobs only."""
+    out: dict[str, dict[str, dict]] = {}
+    for job in jobs:
+        for row in job["rows"]:
+            out.setdefault(row["task"], {})[row["agent"]] = row
+    return out
+
+
+def audit_classify(row_oracle: dict | None, row_nop: dict | None) -> str:
+    o = verdict(row_oracle) if row_oracle else "-"
+    n = verdict(row_nop) if row_nop else "-"
+    if o == "?" or n == "?":
+        return "no-verdict"
+    if o == "P" and n == "F":
+        return "healthy"
+    if o == "F" and n == "P":
+        return "both-broken"      # can't solve it as written, and doing nothing passes
+    if o == "F":
+        return "broken-task"      # oracle cannot satisfy the verifier
+    if n == "P":
+        return "vacuous"          # no work needed to pass
+    return "unknown"
+
+
+def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
+    names = [a for a in args if not a.startswith("--")]
+    as_json = "--json" in args
+    out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
+    if not names:
+        sys.exit("usage: bench_report.py audit <job>... [--json] [--out=path]")
+    jobs = [load_job(jobs_dir, n) for n in names]
+    tasks = audit_rows(jobs)
+    findings = []
+    counts: dict[str, int] = {}
+    for task in sorted(tasks):
+        rows = tasks[task]
+        cls = audit_classify(rows.get("oracle"), rows.get("nop"))
+        counts[cls] = counts.get(cls, 0) + 1
+        if cls != "healthy":
+            findings.append(
+                {
+                    "task": task,
+                    "class": cls,
+                    "oracle": verdict(rows["oracle"]) if "oracle" in rows else "-",
+                    "nop": verdict(rows["nop"]) if "nop" in rows else "-",
+                    "oracle_exception": (rows.get("oracle") or {}).get("exception"),
+                    "nop_exception": (rows.get("nop") or {}).get("exception"),
+                }
+            )
+    payload = {
+        "jobs": names,
+        "tasks": len(tasks),
+        "counts": counts,
+        "findings": findings,
+        "healthy": sorted(t for t in tasks if audit_classify(tasks[t].get("oracle"), tasks[t].get("nop")) == "healthy"),
+    }
+    if as_json:
+        print(json.dumps(payload, indent=1))
+        return
+
+    print(f"### oracle/nop audit — {len(tasks)} tasks from {len(jobs)} job(s)")
+    print()
+    print("| class | tasks | meaning |")
+    print("|---|---|---|")
+    meanings = {
+        "healthy": "oracle passes, nop fails — a real task",
+        "broken-task": "oracle fails — unsolvable as specified, or its reference solution is",
+        "vacuous": "nop passes — the verifier is satisfiable by doing nothing",
+        "both-broken": "oracle fails AND nop passes — the worst case",
+        "no-verdict": "a trial produced no verdict — infrastructure, inspect the exception",
+        "unknown": "only one side ran — the audit is incomplete",
+    }
+    for cls in ("healthy", "broken-task", "vacuous", "both-broken", "no-verdict", "unknown"):
+        if counts.get(cls):
+            print(f"| {cls} | {counts[cls]} | {meanings[cls]} |")
+    print()
+    if findings:
+        print("| task | class | oracle | nop | oracle exception | nop exception |")
+        print("|---|---|---|---|---|---|")
+        for f in findings:
+            print(
+                f"| `{f['task']}` | {f['class']} | {f['oracle']} | {f['nop']} "
+                f"| {f['oracle_exception'] or '—'} | {f['nop_exception'] or '—'} |"
+            )
+        print()
+    if out_path:
+        path = Path(out_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=1) + "\n")
+        print(f"audit: {path}")
+
 def cmd_json(jobs_dir: Path, args: list[str]) -> None:
     print(json.dumps([load_job(jobs_dir, name) for name in args], indent=2))
 
@@ -932,7 +1036,7 @@ def cmd_json(jobs_dir: Path, args: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--jobs-dir", default=str(REPO / "results" / "jobs"))
-    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "json"))
+    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "audit", "json"))
     parser.add_argument("jobs", nargs="*", help="job names (all commands except `runs`)")
     parser.add_argument("--json", action="store_true", help="compare: machine-readable output")
     parser.add_argument("--out", help="report: write to this path instead of stdout")
@@ -958,8 +1062,10 @@ def main() -> int:
             cmd_compare(jobs_dir, opts.jobs + extra)
         elif opts.command == "report":
             cmd_report(jobs_dir, opts.jobs + passthrough)
-        elif opts.command in {"credit", "export", "diff"}:
-            {"credit": cmd_credit, "export": cmd_export, "diff": cmd_diff}[opts.command](jobs_dir, opts.jobs + passthrough)
+        elif opts.command in {"credit", "export", "diff", "audit"}:
+            {"credit": cmd_credit, "export": cmd_export, "diff": cmd_diff, "audit": cmd_audit}[opts.command](
+                jobs_dir, opts.jobs + passthrough
+            )
         else:
             {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
              "json": cmd_json}[opts.command](jobs_dir, opts.jobs)

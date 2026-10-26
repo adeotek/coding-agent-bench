@@ -37,7 +37,11 @@ def env_int(name: str, default: int) -> int:
         sys.exit(f"render_config: {name}={raw!r} is not an integer")
 
 
-def agents(_profile: str) -> list[dict]:
+def agents(profile: str) -> list[dict]:
+    # The audit profile is Harbor's own oracle/nop pair: no model, no key, no tokens.
+    # oracle must solve every task as specified; nop must fail every verifier.
+    if profile == "audit":
+        return [{"name": "oracle"}, {"name": "nop"}]
     zen = env("ZEN_MODEL", "opencode-go/deepseek-v4.1-flash")
     claude = env("CLAUDE_MODEL", "anthropic/claude-sonnet-5")
     entries: list[tuple[str, dict]] = [
@@ -112,7 +116,22 @@ def build(profile: str) -> dict:
         "name": env("TB_DATASET", "terminal-bench"),
         "version": env("TB_VERSION", "2.0"),
     }
-    if profile == "subset":
+    task_file = env("TASK_FILE")
+    if task_file:
+        path = Path(task_file)
+        if not path.is_absolute():
+            path = REPO / path
+        if not path.is_file():
+            sys.exit(f"render_config: TASK_FILE={task_file} does not exist")
+        names = [
+            line.split()[0]
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if not names:
+            sys.exit(f"render_config: TASK_FILE={task_file} lists no tasks")
+        dataset["task_names"] = names
+    elif profile == "subset":
         names = env("TASK_NAMES")
         if names:
             dataset["task_names"] = [s.strip() for s in names.split(",") if s.strip()]
@@ -132,8 +151,8 @@ def main() -> None:
         out_arg = argv[i + 1]
         del argv[i : i + 2]
     profile = argv[0] if argv else "subset"
-    if profile not in ("smoke", "subset", "full"):
-        sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full)")
+    if profile not in ("smoke", "subset", "full", "audit"):
+        sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full|audit)")
     cfg = build(profile)
     out = Path(out_arg) if out_arg else REPO / "results" / f"effective-{profile}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
