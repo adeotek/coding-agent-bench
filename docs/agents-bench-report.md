@@ -58,15 +58,24 @@ The 12-task hold study flipped 3 of 48 (6 %); the harder cells are twice as unst
 
 ### What survives at cell level
 
-**Exactly one cell is a stable defect: `configure-git-webserver`.** moca has never passed it —
-0/6 across the screening sweep, both runs and a 3-attempt cell run — while Claude Code is 2/2 and
-Pi 1/2. OpenCode is 0/2 there as well, so it is hard for two of four agents, not a moca-only wall.
+**The one cell that looked structural is a broken cell, not a moca defect.** moca has never passed
+`configure-git-webserver` (0/6 across the screening sweep, both runs and a 3-attempt cell run) —
+and reading the task's own verifier explains why. `tests/verify.sh` clones `git@localhost`, pushes,
+then curls `/hello.html`, but only the curl is asserted (`"TEST PASSED" in stdout`) and the
+`expect` timeouts are ignored, so **any leftover `hello.html` in `/var/www/html` passes the cell**.
+Claude Code's run-2 pass had no `sshd` installed at all — only `openssh-client` — so its clone
+could not work; it passed on the file its own test left behind. Pi's run-2 pass is genuine (it
+created `git` with the reference password via `chpasswd`). moca built repo + hook + nginx + sshd,
+ran the pipeline end to end (403 before the push, 200 after), then restored a pristine docroot —
+and got a 404 for its tidiness. The task text even says login is out of scope, while the verifier
+requires exactly `git`/`password`.
 
-**Everything else that looked like a finding was noise:**
+So the set now has **two task-side cells** (`filter-js-from-html` and `configure-git-webserver`),
+and neither is an agent result. **Everything else that looked like a finding was noise:**
 
 | cell | moca across all samples | reading |
 |---|---|---|
-| `configure-git-webserver` | **0/6** | structural — the only one |
+| `configure-git-webserver` | **0/6** | **task-side defect** — the verifier accepts a leftover artifact |
 | `large-scale-text-editing` | 1/6 | near-structural, `wq` vs `:wq` |
 | `overfull-hbox` | 3/7 | coin flip; the 3× cell run passed 3/3 |
 | `sanitize-git-repo` | 3/6 | coin flip |
@@ -332,10 +341,11 @@ same task in 45 s the week before. `filter-js` is the other loss.
    At n=24 with one attempt the four CIs overlap, so the ordering (Claude 21, OpenCode/Pi 20,
    moca 18) is directional; a second unchanged run is what turns it into a ranking — and on the
    12-task set a repeat moved three cells between agents.
-2. **Cell-run moca's five real losses** (`configure-git-webserver`, `dna-assembly`,
-   `large-scale-text-editing`, `overfull-hbox`, `sanitize-git-repo`) at `N_ATTEMPTS=3` before any
-   fix is written: three of them reproduced a screening failure exactly, two of the screening
-   failures did not reproduce at all, so single-attempt cell verdicts are not yet trustworthy.
+2. **Read the task's verifier before believing a cell.** `configure-git-webserver` looked like
+   moca's only structural defect until `tests/verify.sh` was read: it asserts a leftover artifact,
+   not the behaviour, and Claude passed it once with no `sshd` installed. The remaining candidate
+   (`large-scale-text-editing`, 1/6) is cheap to check the same way — `~/.cache/harbor/tasks/*/`
+   holds every task's `tests/` — and a cell run at `N_ATTEMPTS=3` is the measurement, not a fix.
 3. **Keep the moca-only rounds out of this table.** They are a release history, not a
    comparison; mixing them would silently compare different dates.
 4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the

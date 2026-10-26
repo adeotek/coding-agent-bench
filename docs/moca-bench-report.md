@@ -360,21 +360,41 @@ Two of this section's earlier readings are **withdrawn**:
   overall — the screening and run-1 failures were variance, and so was the "literal-constraint
   defect class" built on it and `large-scale`.
 
-### What is left, measured
+### What is left, measured — and the cell that was not moca's fault
 
-**One fix target: `configure-git-webserver`, 0/6.** The server never answers the URL the verifier
-fetches (`test_hello_html_exists` → HTTP 404) and moca closes the task with a success claim every
-time. Claude Code passes it 2/2 and Pi 1/2; OpenCode is 0/2. That is a verification habit, not a
-capability wall — and it is the only cell in the whole 24-task set where moca has never passed.
+**`configure-git-webserver` (0/6) is a task-side defect, not a moca defect.** The investigation
+went into the transcripts and the task's own verifier, and moca's behaviour is the *correct* one:
 
-**`large-scale-text-editing` (1/6) is the second candidate** — the script ends with `wq` instead of
-`:wq`, i.e. the stated instruction is read and then dropped. It passes once, so a fix has to be
-validated with a 3-attempt cell run, not a single trial.
+- `tests/verify.sh` installs `expect`, clones `git@localhost:/git/server`, pushes, then curls
+  `http://localhost:8080/hello.html` and greps its own output for `TEST PASSED`. Only the last
+  step is asserted (`test_outputs.py` checks `"TEST PASSED" in result.stdout`); the clone and the
+  push are never asserted, and `expect` timeouts are silently ignored.
+- So the cell passes if **`hello.html` is sitting in `/var/www/html` for any reason** — including
+  the agent's own end-to-end test.
+- **Claude Code's run-2 pass had no `sshd` installed at all** (only `openssh-client`), so its clone
+  could not have worked: it passed because its test artifact was still in the docroot.
+- **Pi's run-2 pass is genuine** — it created `git` with password `password` via `chpasswd`,
+  matching the reference solution.
+- **moca** built the bare repo, a `post-receive` hook, nginx on 8080 and sshd, ran the full
+  pipeline end to end (403 before the push, 200 after), then **restored a pristine repository and
+  docroot** — and the verifier curled the cell it had just cleaned away: `HTTP 404`.
+- The task text says "I'll setup login with the server to work, you don't have to worry about
+  that", while the verifier requires exactly a `git` account with the undisclosed password
+  `password`. The requirement is unguessable, and the fallback check rewards leaving litter.
 
-**Everything else in the loss column is noise** at this sample size, and the honest summary is
-that moca's 37/48 sits 2–3 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code
-(44/48), with overlapping confidence intervals at 48 trials. The ranking reproduced in direction,
-not in precision.
+**Verdict: the cell measures tidiness, not capability.** It joins `filter-js-from-html` on the
+task-side list, and moca is not credited with a defect for failing it — nor is Claude credited with
+a pass for gaming it. Every other cell in moca's loss column is a coin flip.
+
+**`large-scale-text-editing` (1/6) is therefore the only candidate left** — the script ends with
+`wq` instead of `:wq`, i.e. the stated instruction is read and then dropped. It passes once, so a
+fix has to be validated with a 3-attempt cell run, not a single trial.
+
+**Net: the 24-task set currently contains no reproducible moca defect.** moca's 37/48 sits 2–3
+cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code (44/48), with overlapping
+confidence intervals at 48 trials, and at least one of Claude's cells is a gamed pass. The ranking
+reproduced in direction, not in precision — and pointing a release at it needs a sharper
+instrument, not a code change.
 
 ## Summary — where v0.7.10 stands, against every earlier release
 
@@ -394,11 +414,14 @@ details in the attribution section, which states what a real split would cost.
 **The 12-task subset is spent as an instrument; the 24-task set is the live one.** Two identical
 runs put moca at 18 and 19 of 24 — last in both, 2–3 cells behind Pi and OpenCode and 7 behind
 Claude Code, still 22× cheaper per solved task. The cell-level picture is much narrower than the
-score suggests: **`configure-git-webserver` (0/6) is the only cell moca has never passed**, with
-`large-scale-text-editing` (1/6) as the second candidate. Three separate cell-level claims in this
-report's history turned out to be noise (the budget's regressions, the literal-constraint class,
-`dna-assembly` as a capability gap) — every one of them was caught by repeating the cells before
-acting on them, which is the standard this report now holds itself to.
+score suggests: the one cell moca has never passed (`configure-git-webserver`, 0/6) turned out to
+be a **task-side defect** — its verifier accepts a leftover `hello.html`, and moca failed it for
+cleaning up after a successful end-to-end test. The only candidate left is
+`large-scale-text-editing` (1/6). Four separate cell-level claims in this
+report's history turned out to be noise or a verifier artefact (the budget's regressions, the
+literal-constraint class, `dna-assembly` as a capability gap, `configure-git-webserver` as a
+defect) — every one was caught before a fix was written, which is the standard this report now
+holds itself to. **No moca code change is currently justified by the 24-task data.**
 
 ## Update procedure
 
