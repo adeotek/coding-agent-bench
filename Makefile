@@ -16,6 +16,7 @@ test: ## harness unit tests: moca run line + session mirror, report parsers, har
 	PYTHONPATH="$(CURDIR)" "$$(uv tool dir)/harbor/bin/python" test/moca_run_command_test.py
 	python3 test/bench_report_steps_test.py
 	python3 test/bench_report_compare_test.py
+	python3 test/bench_report_report_test.py
 	python3 test/bench_pin_guard_test.py
 
 probe: ## live credential probes (one tiny request per agent)
@@ -44,8 +45,12 @@ full: ## run full Terminal-Bench 2.0 (expensive: time, tokens, disk)
 render: ## render the effective config to results/ and print its path
 	./scripts/bench.sh render $(or $(ARGS),subset)
 
-report: ## re-derive report tables from results/jobs (ARGS="runs" | "summary <job>" | "matrix <job>…")
-	python3 scripts/bench_report.py $(or $(ARGS),runs)
+report: ## tables from results/jobs: ARGS="runs|summary <job>|matrix <job>…|compare <job>…"; JOBS="<job>…" regenerates docs/bench-latest.md
+	@if [ -n "$(JOBS)" ]; then \
+	  python3 scripts/bench_report.py export $(JOBS) && \
+	  python3 scripts/bench_report.py report $(JOBS) --out=docs/bench-latest.md && \
+	  echo "report: docs/bench-latest.md"; \
+	else python3 scripts/bench_report.py $(or $(ARGS),runs); fi
 
 view: ## browse job results in the web viewer (bound to 127.0.0.1)
 	./scripts/bench.sh view

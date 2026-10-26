@@ -400,6 +400,12 @@ syntax list**, and the verifier rejects the form the spec did not list. That is 
 pedantic) instruction-following test, not a task-side defect, and it is the only reproducible
 moca behaviour the 24-task set has left: **1/6, one missing colon.**
 
+**Partial credit says the gap is composition, not capability.** Run 2 scored moca at 82.6 %
+binary but **95.0 % by test** (76 of 80 tests passed) — the same cells, one assertion short each.
+Claude Code is 97.6 %, OpenCode 93.9 %, Pi 92.7 %: a 4.9-point spread on credit against 16.6 on
+binary. That is the strongest evidence yet that moca's remaining losses are mostly "stopped one
+test early" rather than "cannot do the task".
+
 **Net: the 24-task set currently contains no reproducible moca defect.** moca's 37/48 sits 2–3
 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code (44/48), with overlapping
 confidence intervals at 48 trials, and at least one of Claude's cells is a gamed pass. The ranking

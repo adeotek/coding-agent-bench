@@ -13,6 +13,10 @@ Usage
   scripts/bench_report.py matrix <job>...      task x job pass matrix
   scripts/bench_report.py steps <job>...       per-trial step/tool accounting
   scripts/bench_report.py compare <job>...     paired per-task deltas, bootstrap CI, McNemar
+  scripts/bench_report.py credit <job>...      partial credit from verifier ctrf.json
+  scripts/bench_report.py export <job>...      summary.json per job (trials + manifest + aggregates)
+  scripts/bench_report.py report <job>...      generated markdown (leaderboard, matrix, verdicts)
+  scripts/bench_report.py diff <job> <task>    per-agent behaviour diff for one cell
   scripts/bench_report.py json <job>...        raw rows (for ad-hoc analysis)
 
 Rewards are read from `verifier_result.rewards.reward` (a dict — reading
@@ -38,7 +42,7 @@ import argparse
 import json
 import statistics
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -499,6 +503,37 @@ def flip_rate(jobs: list[dict]) -> dict:
     return {"cells": len(cells), "flips": len(flips), "detail": flips}
 
 
+def manifest_warnings(jobs_dir: Path, jobs: list[dict]) -> list[str]:
+    """Flag comparisons that mix toolchains, knobs or task sets.
+
+    A job without a manifest cannot be checked at all — say so rather than assume
+    it matched.
+    """
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location("cab_manifest", Path(__file__).with_name("manifest.py"))
+    if spec is None or spec.loader is None:  # pragma: no cover - defensive
+        return []
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    seen: dict[str, dict | None] = {}
+    for job in jobs:
+        path = jobs_dir / job["name"] / "manifest.json"
+        seen[job["name"]] = json.loads(path.read_text()) if path.is_file() else None
+    missing = [n for n, m in seen.items() if m is None]
+    warnings = []
+    if missing:
+        warnings.append(f"no manifest for {', '.join(missing)} — toolchain unverified, comparison unchecked")
+    present = {n: mod.comparable(m) for n, m in seen.items() if m}
+    if len(present) > 1:
+        names = list(present)
+        base = present[names[0]]
+        for other in names[1:]:
+            for key in base:
+                if present[other].get(key) != base.get(key):
+                    warnings.append(f"{key} differs: {names[0]}={base.get(key)!r} vs {other}={present[other].get(key)!r}")
+    return warnings
+
 def cmd_compare(jobs_dir: Path, args: list[str]) -> None:
     names, iters, seed, as_json = [], 10000, 0, False
     for arg in args:
@@ -533,13 +568,19 @@ def cmd_compare(jobs_dir: Path, args: list[str]) -> None:
                     "scores": {a: {"tasks": s["tasks"], "score": s["score"], "no_verdict": s["no_verdict"]} for a, s in scores.items()},
                     "pairs": pairs,
                     "flips": {"cells": flips["cells"], "flips": flips["flips"]} if flips else None,
+                    "manifest_warnings": manifest_warnings(jobs_dir, jobs),
                 },
                 indent=1,
             )
         )
         return
 
+    warn = manifest_warnings(jobs_dir, jobs)
     print(f"### paired comparison — {len(jobs)} job(s), {len(outcomes)} tasks, {cells} cells, {total_attempts} trials (iters={iters}, seed={seed})")
+    if warn:
+        print()
+        for w in warn:
+            print(f"> **WARNING** {w}")
     print()
     print("| agent | tasks | score | 95 % CI (task bootstrap) | no verdict |")
     print("|---|---|---|---|---|")
@@ -565,6 +606,325 @@ def cmd_compare(jobs_dir: Path, args: list[str]) -> None:
             print(f"- `{task}` · {agent}: {' → '.join(vs)}")
     print()
 
+# --- partial credit, export, report, diff ------------------------------------
+#
+# Binary reward is what Harbor records, but the verifier already wrote ctrf.json
+# with every test's status. On the 24-task set that is 82 tests, so partial credit
+# resolves ~3.4x finer than pass/fail (1.22 pts/test vs 4.2 pts/task). It is a
+# secondary metric, not a replacement: a task is still solved or not.
+
+
+def trial_dir(jobs_dir: Path, job: str, trial: str) -> Path:
+    return jobs_dir / job / trial
+
+
+def credit_of(jobs_dir: Path, job: str, trial: str) -> dict | None:
+    """{passed, total, skipped, failed:[names]} from the verifier's ctrf.json."""
+    path = trial_dir(jobs_dir, job, trial) / "verifier" / "ctrf.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return None
+    results = data.get("results") or {}
+    tests = results.get("tests") or []
+    if not tests:
+        return None
+    passed = sum(1 for t in tests if t.get("status") == "passed")
+    skipped = sum(1 for t in tests if t.get("status") in ("skipped", "pending"))
+    failed = [t.get("name") for t in tests if t.get("status") == "failed"]
+    return {"passed": passed, "total": len(tests) - skipped, "skipped": skipped, "failed": failed}
+
+
+def credit_map(jobs_dir: Path, jobs: list[dict]) -> dict[tuple[str, str], dict | None]:
+    out: dict[tuple[str, str], dict | None] = {}
+    for job in jobs:
+        for row in job["rows"]:
+            out[(job["name"], row["trial"])] = credit_of(jobs_dir, job["name"], row["trial"])
+    return out
+
+
+def credit_fraction(credit: dict | None) -> float | None:
+    if not credit or not credit["total"]:
+        return None
+    return credit["passed"] / credit["total"]
+
+
+def task_side_tasks(repo: Path) -> dict[str, str]:
+    """Tasks with a *demonstrated verifier defect* — excluded from scores, kept in the set.
+
+    `repo` may be the repository root or the JSON file itself; the registry lives
+    at docs/task-side.json and every entry there must cite its evidence.
+    """
+    path = repo if repo.suffix == ".json" else repo / "docs" / "task-side.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return {}
+    return {k: (v.get("why") if isinstance(v, dict) else str(v)) for k, v in (data.get("tasks") or {}).items()}
+
+
+def cmd_credit(jobs_dir: Path, args: list[str]) -> None:
+    jobs = [load_job(jobs_dir, n) for n in args if not n.startswith("--")]
+    credits = credit_map(jobs_dir, jobs)
+    print(f"### partial credit — {', '.join(j['name'] for j in jobs)}")
+    print()
+    print("| agent | trials | tests | passed | credit | binary |")
+    print("|---|---|---|---|---|---|")
+    per_agent: dict[str, dict] = {}
+    for job in jobs:
+        for row in job["rows"]:
+            c = credits.get((job["name"], row["trial"]))
+            a = per_agent.setdefault(row["agent"], {"trials": 0, "tests": 0, "passed": 0, "binary": 0, "scored": 0})
+            a["trials"] += 1
+            if c:
+                a["tests"] += c["total"]
+                a["passed"] += c["passed"]
+            v = verdict(row)
+            if v != "?":
+                a["scored"] += 1
+                a["binary"] += 1 if v == "P" else 0
+    for agent, a in sorted(per_agent.items(), key=lambda kv: -(kv[1]["passed"] / kv[1]["tests"] if kv[1]["tests"] else 0)):
+        credit = 100 * a["passed"] / a["tests"] if a["tests"] else 0.0
+        binary = 100 * a["binary"] / a["scored"] if a["scored"] else 0.0
+        print(f"| {agent} | {a['trials']} | {a['tests']} | {a['passed']} | {credit:.1f} % | {binary:.1f} % |")
+    print()
+
+
+def export_job(jobs_dir: Path, job: dict, credits: dict, task_side: dict[str, str]) -> dict:
+    manifest_path = jobs_dir / job["name"] / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else None
+    trials = []
+    for row in job["rows"]:
+        c = credits.get((job["name"], row["trial"]))
+        trials.append(
+            {
+                "task": row["task"],
+                "trial": row["trial"],
+                "agent": row["agent"],
+                "agent_version": row.get("version"),
+                "model": row.get("model"),
+                "verdict": verdict(row),
+                "reward": row["reward"],
+                "credit": credit_fraction(c),
+                "tests": c,
+                "task_side": row["task"] in task_side,
+                "exception": row.get("exception"),
+                "tokens": {
+                    "input": row.get("input_tokens"),
+                    "cache": row.get("cache_tokens"),
+                    "output": row.get("output_tokens"),
+                },
+                "cost_usd": row.get("cost_usd"),
+                "seconds": {"agent": row.get("agent_seconds"), "trial": row.get("trial_seconds")},
+            }
+        )
+    by_agent: dict[str, dict] = {}
+    for t in trials:
+        a = by_agent.setdefault(
+            t["agent"],
+            {"trials": 0, "tasks": 0, "passes": 0, "cost_usd": 0.0, "input_tokens": 0, "output_tokens": 0,
+             "credit_sum": 0.0, "credit_n": 0, "no_verdict": 0, "task_side": 0},
+        )
+        a["trials"] += 1
+        if t["verdict"] == "?":
+            a["no_verdict"] += 1
+        else:
+            a["tasks"] += 1
+            a["passes"] += 1 if t["verdict"] == "P" else 0
+        if t["task_side"]:
+            a["task_side"] += 1
+        a["cost_usd"] += t["cost_usd"] or 0.0
+        a["input_tokens"] += t["tokens"]["input"] or 0
+        a["output_tokens"] += t["tokens"]["output"] or 0
+        if t["credit"] is not None:
+            a["credit_sum"] += t["credit"]
+            a["credit_n"] += 1
+    for a in by_agent.values():
+        a["score"] = a["passes"] / a["tasks"] if a["tasks"] else None
+        a["credit"] = a["credit_sum"] / a["credit_n"] if a["credit_n"] else None
+    return {
+        "schema": 1,
+        "job": job["name"],
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "repo": str(REPO),
+        "manifest": manifest,
+        "config": job["config"],
+        "task_side": sorted(task_side),
+        "trials": trials,
+        "by_agent": by_agent,
+    }
+
+
+def cmd_export(jobs_dir: Path, args: list[str]) -> None:
+    names = [a for a in args if not a.startswith("--")]
+    registry = next((a.split("=", 1)[1] for a in args if a.startswith("--task-side=")), REPO / "docs" / "task-side.json")
+    task_side = task_side_tasks(Path(registry))
+    jobs = [load_job(jobs_dir, n) for n in names]
+    credits = credit_map(jobs_dir, jobs)
+    for job in jobs:
+        summary = export_job(jobs_dir, job, credits, task_side)
+        out = jobs_dir / job["name"] / "summary.json"
+        out.write_text(json.dumps(summary, indent=1) + "\n")
+        print(f"summary: {out} ({len(summary['trials'])} trials)")
+
+
+def _fmt_money(x: float | None) -> str:
+    return "—" if x is None else f"${x:.4f}"
+
+
+def _cost_stats(values: list[float]) -> tuple[float, float, float]:
+    if not values:
+        return (0.0, 0.0, 0.0)
+    s = sorted(values)
+    p = lambda q: s[min(len(s) - 1, int(q * len(s)))]
+    return (sum(s) / len(s), p(0.5), p(0.9))
+
+
+def cmd_report(jobs_dir: Path, args: list[str]) -> None:
+    include_task_side = "--include-task-side" in args
+    out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
+    names = [a for a in args if not a.startswith("--")]
+    registry = next((a.split("=", 1)[1] for a in args if a.startswith("--task-side=")), REPO / "docs" / "task-side.json")
+    task_side = {} if include_task_side else task_side_tasks(Path(registry))
+    jobs = [load_job(jobs_dir, n) for n in names]
+    for job in jobs:
+        if task_side:
+            job["rows"] = [r for r in job["rows"] if r["task"] not in task_side]
+    credits = credit_map(jobs_dir, jobs)
+    outcomes = task_outcomes(jobs)
+    scores = agent_scores(outcomes)
+    agents = sorted(scores, key=lambda a: -scores[a]["score"])
+
+    lines: list[str] = []
+    add = lines.append
+    add("<!-- generated by scripts/bench_report.py report — do not edit by hand -->")
+    add("")
+    add(f"# Bench run report — {', '.join(n for n in names)}")
+    add("")
+    for job in jobs:
+        m = json.loads((jobs_dir / job["name"] / "manifest.json").read_text()) if (jobs_dir / job["name"] / "manifest.json").is_file() else None
+        add(f"## `{job['name']}`")
+        add("")
+        if m:
+            agents_desc = ", ".join(f"{a['id']}@{a.get('version') or '?'} ({a.get('model')})" for a in m.get("agents") or [])
+            add(f"- **toolchain**: harbor {m['harbor']['version']} on python {m['harbor']['python']}, repo {(m.get('repo') or {}).get('short')}"
+                f"{' (dirty)' if (m.get('repo') or {}).get('dirty') else ''}")
+            add(f"- **agents**: {agents_desc}")
+            add(f"- **dataset**: {m['dataset']['name']} {m['dataset']['version']}, {m['dataset']['n_tasks']} tasks, "
+                f"{m['config'].get('n_attempts')} attempt(s), {m['config'].get('n_concurrent_trials')} concurrent")
+            if m.get("duration_s"):
+                add(f"- **wall clock**: {m['duration_s'] / 3600:.2f} h; trials recorded: {(m.get('trials') or {}).get('total')}")
+        else:
+            add("- **manifest**: absent (job predates manifests) — toolchain unverified")
+        add("")
+
+    add("## Leaderboard")
+    add("")
+    add("| agent | tasks | score | 95 % CI | credit | $/task | $ p50 / p90 | $/solved | no verdict |")
+    add("|---|---|---|---|---|---|---|---|---|")
+    for a in agents:
+        s = scores[a]
+        lo, hi = cluster_bootstrap(s["rates"], 10000, 0)
+        costs, credits_list = [], []
+        for job in jobs:
+            for row in job["rows"]:
+                if row["agent"] != a:
+                    continue
+                costs.append(row.get("cost_usd") or 0.0)
+                cf = credit_fraction(credits.get((job["name"], row["trial"])))
+                if cf is not None:
+                    credits_list.append(cf)
+        mean_cost, p50, p90 = _cost_stats(costs)
+        spent = sum(costs)
+        solved = sum(1 for job in jobs for row in job["rows"] if row["agent"] == a and verdict(row) == "P")
+        per_solved = spent / solved if solved else None
+        credit_pct = f"{100 * sum(credits_list) / len(credits_list):.1f} %" if credits_list else "—"
+        add(
+            f"| {a} | {s['tasks']} | {s['score'] * 100:.1f} % | {lo * 100:.1f}–{hi * 100:.1f} % | {credit_pct} "
+            f"| {_fmt_money(mean_cost)} | {_fmt_money(p50)} / {_fmt_money(p90)} | {_fmt_money(per_solved)} | {s['no_verdict']} |"
+        )
+    add("")
+
+    add("## Per task")
+    add("")
+    header = "| task | " + " | ".join(agents) + " |"
+    add(header)
+    add("|---" * (len(agents) + 1) + "|")
+    for task in sorted(outcomes):
+        cells = []
+        for a in agents:
+            vals = outcomes[task].get(a) or []
+            if not vals:
+                cells.append("·")
+            else:
+                marks = "".join("✅" if v == 1.0 else ("⏱" if v is None else "❌") for v in vals)
+                cells.append(marks)
+        add(f"| `{task}` | " + " | ".join(cells) + " |")
+    add("")
+
+    pairs = pairwise(outcomes, agents, 10000, 0)
+    add("## Paired comparisons")
+    add("")
+    add("| pair | Δ | 95 % CI | discordant (> / <) | McNemar p | verdict |")
+    add("|---|---|---|---|---|---|")
+    for p in pairs:
+        excludes = p["lo"] > 0 or p["hi"] < 0
+        claim = "better" if (excludes and p["delta"] > 0) else ("worse" if (excludes and p["delta"] < 0) else "undecided")
+        add(
+            f"| {p['a']} − {p['b']} | {p['delta'] * 100:+.1f} pts | {p['lo'] * 100:+.2f} … {p['hi'] * 100:+.2f} "
+            f"| {p['a_only']} / {p['b_only']} | {p['p']:.3f} | **{claim}** |"
+        )
+    add("")
+    if len(jobs) > 1:
+        flips = flip_rate(jobs)
+        pct = 100 * flips["flips"] / flips["cells"] if flips["cells"] else 0.0
+        add(f"**Flip rate:** {flips['flips']} of {flips['cells']} cells ({pct:.1f} %) changed verdict between jobs.")
+        add("")
+    if task_side:
+        add("## Excluded (task-side defects)")
+        add("")
+        for task, why in sorted(task_side.items()):
+            add(f"- `{task}` — {why}")
+        add("")
+    text = "\n".join(lines) + "\n"
+    if out_path:
+        path = Path(out_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        print(f"report: {path} ({len(lines)} lines)")
+    else:
+        print(text)
+
+
+def cmd_diff(jobs_dir: Path, args: list[str]) -> None:
+    names = [a for a in args if not a.startswith("--")]
+    if len(names) < 2:
+        sys.exit("usage: bench_report.py diff <job> <task>")
+    job_name, task = names[0], names[1]
+    job = load_job(jobs_dir, job_name)
+    rows = [r for r in job["rows"] if r["task"] == task]
+    if not rows:
+        sys.exit(f"bench_report: no trials for {task} in {job_name}")
+    credits = credit_map(jobs_dir, [job])
+    print(f"### {task} — {job_name}")
+    print()
+    print("| agent | verdict | tests | failing | exception | in tok | out tok | cost | agent s |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    for row in sorted(rows, key=lambda r: r["agent"]):
+        c = credits.get((job_name, row["trial"])) or {}
+        tests = f"{c.get('passed', '—')}/{c.get('total', '—')}" if c else "—"
+        failing = ", ".join((c.get("failed") or [])[:3]) or "—"
+        print(
+            f"| {row['agent']} | {verdict(row)} | {tests} | {failing} | {row.get('exception') or '—'} "
+            f"| {row.get('input_tokens') or 0} | {row.get('output_tokens') or 0} | {_fmt_money(row.get('cost_usd'))} "
+            f"| {row.get('agent_seconds') or 0:.0f} |"
+        )
+    print()
+
 def cmd_json(jobs_dir: Path, args: list[str]) -> None:
     print(json.dumps([load_job(jobs_dir, name) for name in args], indent=2))
 
@@ -572,9 +932,11 @@ def cmd_json(jobs_dir: Path, args: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--jobs-dir", default=str(REPO / "results" / "jobs"))
-    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "json"))
+    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "json"))
     parser.add_argument("jobs", nargs="*", help="job names (all commands except `runs`)")
     parser.add_argument("--json", action="store_true", help="compare: machine-readable output")
+    parser.add_argument("--out", help="report: write to this path instead of stdout")
+    parser.add_argument("--include-task-side", action="store_true", help="report/export: keep known task-side cells")
     parser.add_argument("--iters", type=int, default=10000, help="compare: bootstrap iterations (default 10000)")
     parser.add_argument("--seed", type=int, default=0, help="compare: bootstrap seed (default 0)")
     opts = parser.parse_args()
@@ -586,9 +948,18 @@ def main() -> int:
     else:
         if not opts.jobs:
             sys.exit(f"bench_report: `{opts.command}` needs at least one job name")
+        passthrough = []
+        if opts.out:
+            passthrough.append(f"--out={opts.out}")
+        if opts.include_task_side:
+            passthrough.append("--include-task-side")
         if opts.command == "compare":
             extra = [f"--iters={opts.iters}", f"--seed={opts.seed}"] + (["--json"] if opts.json else [])
             cmd_compare(jobs_dir, opts.jobs + extra)
+        elif opts.command == "report":
+            cmd_report(jobs_dir, opts.jobs + passthrough)
+        elif opts.command in {"credit", "export", "diff"}:
+            {"credit": cmd_credit, "export": cmd_export, "diff": cmd_diff}[opts.command](jobs_dir, opts.jobs + passthrough)
         else:
             {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
              "json": cmd_json}[opts.command](jobs_dir, opts.jobs)

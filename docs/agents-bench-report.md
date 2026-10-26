@@ -281,6 +281,31 @@ signal (see the moca report for the test-source audit).
 **One cell separates the field:** `kv-store-grpc` — only OpenCode misses it, and it does so
 for a specific reason (below).
 
+## Partial credit — binary scoring was hiding most of the difference
+
+The verifier writes `ctrf.json` with every test's status, and the 24-task set runs **82 tests**
+to score 24 cells. Scored that way (passed / run, `skipped` excluded), run 2 looks different:
+
+| agent | tests | passed | credit | binary |
+|---|---|---|---|---|
+| claude-code | 82 | 80 | **97.6 %** | 95.8 % |
+| moca | 80 | 76 | **95.0 %** | 82.6 % |
+| opencode | 82 | 77 | **93.9 %** | 79.2 % |
+| pi | 82 | 76 | **92.7 %** | 83.3 % |
+
+Two things worth keeping:
+
+1. **The four agents are 4.9 points apart on credit and 16.6 apart on binary.** Most of moca's
+   and OpenCode's deficit is a *single failing test per lost cell*, not a missing capability:
+   moca passes 76 of the 80 tests it runs and still scores 82.6 %.
+2. **The ranking barely moves** — credit orders claude > moca > opencode > pi, binary orders
+   claude > pi > opencode > moca; the middle three swap on ~1 test each. Partial credit is a
+   better *resolution* instrument, not a different verdict, which is how it is reported:
+   secondary, never a replacement.
+
+`filter-js-from-html` is why moca shows 80 tests and not 82 — that trial produced no ctrf at all
+(verifier timeout, `⏱`), and no-verdict stays excluded rather than being counted as a failure.
+
 ## Efficiency
 
 | agent | input tokens (incl. cache) | output tokens | $/solved | tok/solved | median agent run | median trial (incl. install) |

@@ -1,0 +1,15 @@
+{
+  "_comment": "Cells whose verifier is demonstrably broken. Kept in the task set (the history must stay comparable) but excluded from scores by `bench_report.py report|compare` unless --include-task-side is passed. Evidence lives in docs/moca-bench-report.md and docs/agents-bench-report.md; add a row here only after reading the verifier AND the transcripts.",
+  "tasks": {
+    "configure-git-webserver": {
+      "why": "verifier asserts only that 'TEST PASSED' appears in stdout; the clone/push checks are not asserted and expect timeouts are ignored, so a leftover /var/www/html/hello.html passes with no sshd installed",
+      "evidence": "docs/agents-bench-report.md#task-side-cells (PR #6): claude passed in run 2 with no sshd, pi needed a chpasswd trick, moca built the whole stack correctly and failed the 404",
+      "since": "2026-10-26"
+    },
+    "filter-js-from-html": {
+      "why": "byte-exact expectation plus verifier timeouts: 0 passes in 25 attempts across the 12-task hold study, two attempts died as VerifierTimeoutError",
+      "evidence": "docs/moca-bench-report.md (screening + hold study rows)",
+      "since": "2026-10-25"
+    }
+  }
+}
