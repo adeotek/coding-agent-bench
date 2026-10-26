@@ -124,6 +124,9 @@ The 2026-10-25 sweep (batches 1–3, 30 tasks, 25/30, $0.43) is written up in
 [`docs/moca-bench-report.md`](docs/moca-bench-report.md#screening-sweep--2026-10-25-the-tasks-this-bench-had-never-run-moca-only).
 Its five failures plus seven grinding passes became the second half of
 `docs/tb2-subset-24.txt` — the set to compare releases on, because the 12-task one is saturated.
+That set has now been run twice with all four agents (`AGENTS= N_ATTEMPTS=1 TASK_NAMES=$(grep -v '^#' docs/tb2-subset-24.txt | paste -sd,)`);
+one cell in seven disagrees between the two runs, so a cell-level conclusion needs a 3-attempt
+cell run (`N_ATTEMPTS=3 TASK_NAMES=…`) before anyone writes a fix against it.
 
 ### 4. Full Terminal-Bench 2.0
 

@@ -319,153 +319,86 @@ grinding (`dna-assembly` 45 turns/$0.082, `sanitize-git-repo` 943 K tokens, `cra
 Expected moca score there is ~18–20/24 — headroom a fix can actually move, which the 12-task
 set no longer has.
 
-## 24-task set — first run (2026-10-25, moca 18/24)
+## 24-task set — two identical runs (2026-10-25: 18/24, 2026-10-26: 19/24)
 
 The screening sweep produced an instrument with headroom: `docs/tb2-subset-24.txt` is the fixed
-12 plus the five screening failures and seven cells that only passed by grinding. First run with
-all four agents — 96 trials, 4 h 07 m, job `cab-subset-20261025-174057-3299781`, $1.59 zen cash
-plus $10.54 Claude-equivalent:
+12 plus the five screening failures and seven cells that only passed by grinding. It has now been
+run twice with all four agents, identical pins and one attempt per cell per run —
+`cab-subset-20261025-174057-3299781` (4 h 07 m) and `cab-subset-20261026-134414-1158148` (4 h 37 m),
+$1.54 and $1.53 zen cash plus $10.54 / $10.31 Claude-equivalent:
 
-| agent | solved | $/solved |
-|---|---|---|
-| **Claude Code** 2.1.310 | **21/24** | $0.5021 eq |
-| OpenCode 2.1.4 | 20/24 | $0.0305 |
-| Pi 1.4.0 | 20/24 | $0.0285 |
-| **moca** v0.7.10 | **18/24** | **$0.0227** |
+| agent | run 1 | run 2 | pooled |
+|---|---|---|---|
+| **Claude Code** 2.1.310 | 21/24 | **23/24** | **44/48** |
+| Pi 1.4.0 | 20/24 | 20/24 | 40/48 |
+| OpenCode 2.1.4 | 20/24 | 19/24 | 39/48 |
+| **moca** v0.7.10 | 18/24 | 19/24 | **37/48** |
 
-**On the original twelve moca is still 11/12** — every point of separation sits in the twelve
-added cells, where moca scores **7/12** against Pi 9, OpenCode 9 and Claude 10. The 11/12 on the
-old subset was a ceiling over a ranking, not a tie for first.
+**The ordering reproduced; the cells did not.** moca is last in both runs and Claude first in
+both, but **13 of 96 cells changed verdict between two identical runs (13.5 %)** — the 12-task
+hold study flipped 3/48 (6 %), so the harder cells are twice as unstable. On the original twelve
+moca is 11/12 in both runs; the twelve added cells are where everything moves (moca 7/12 then
+8/12).
 
-**moca's six losses, and who else passes them:**
+### What moca actually loses, over every sample
 
-| cell | turns | failing test | passed by | screening result |
-|---|---|---|---|---|
-| `configure-git-webserver` | 15 | `test_hello_html_exists` (HTTP 404) | Claude only | **reproduced** |
-| `dna-assembly` | 35 | `test_primers` | Pi only | passed screening |
-| `large-scale-text-editing` | 15 | `test_apply_macros_well_formed` (`wq` vs `:wq`) | OpenCode, Claude | **reproduced** |
-| `overfull-hbox` | 22 | `test_input_file_matches` (word outside `synonyms.txt`) | Pi, Claude | **reproduced** |
-| `sanitize-git-repo` | 12 | `test_removal_of_secret_information` | OpenCode, Claude | not screened at this depth |
-| `filter-js-from-html` | 19 | both (task-side) | nobody, ever | task-side |
+| cell | moca's samples | pass rate | verdict |
+|---|---|---|---|
+| `configure-git-webserver` | screen, run 1, run 2, 3× cell run | **0/6** | **structural — the only stable defect** |
+| `large-scale-text-editing` | screen, run 1, run 2, 3× cell run | 1/6 | near-structural (`wq` vs `:wq`) |
+| `overfull-hbox` | screen, run 1, run 2, 3× cell run | 3/7 | coin flip — the 3× run passed 3/3 |
+| `sanitize-git-repo` | screen, run 1, run 2, 3× cell run | 3/6 | coin flip |
+| `dna-assembly` | screen, run 1, run 2, 3× cell run | 2/6 | coin flip **for all four agents** |
+| `dna-insert` | screen, run 1, run 2 | 1/3 | coin flip |
+| `filter-js-from-html` | every run of the bench | never passed | task-side, byte-exact test |
 
-No cell is failed by moca alone, and every loss except `filter-js` is solved by at least one
-competitor — so this is a ranking gap, not a broken run.
+Two of this section's earlier readings are **withdrawn**:
 
-**Three of the five screening failures reproduced with the identical failing test.** That is the
-first evidence here that a single-attempt screen can identify a *stable* defect rather than a bad
-draw — and the two that did not reproduce (`gcode-to-text` passed in 71 turns, `dna-insert` in 30)
-are now known to be flaky cells rather than capability walls. The screening sweep's own
-`gcode-to-text` verdict is therefore withdrawn as a capability claim.
+- **`dna-assembly` is not a moca capability gap.** moca passed it in run 2 while Pi failed it; over
+  the samples OpenCode is 0/2, Pi 1/2, Claude 1/2, moca 2/6. It is a hard cell for everybody.
+- **`overfull-hbox` is not a constraint-compliance defect.** It passes 3/3 in a cell run and 3/7
+  overall — the screening and run-1 failures were variance, and so was the "literal-constraint
+  defect class" built on it and `large-scale`.
 
-**The five losses, re-measured — four of them are not stable defects.** A cell run at these
-exact settings (3 attempts each, plus a `log-summary` canary that passed 3/3) turns the two-sample
-guesses into rates, and it rewrites the backlog:
+### What is left, measured
 
-| cell | 24-set + screen | cell run | combined | verdict |
-|---|---|---|---|---|
-| `configure-git-webserver` | 0/2 | **0/3** | **0/5** | **structural** — the 404 is not luck |
-| `dna-assembly` | 1/2 | **0/3** | **1/5** | **structural** — and only Pi solves it |
-| `large-scale-text-editing` | 0/2 | 1/3 | 1/5 | flaky at ~20 % — sometimes writes `:wq` |
-| `sanitize-git-repo` | 1/2 | 1/3 | 2/5 | flaky at ~40 %, and the fast failures suggest an early stop |
-| `overfull-hbox` | 0/2 | **3/3** | 3/5 | **mostly passes** — the two failures were variance |
+**One fix target: `configure-git-webserver`, 0/6.** The server never answers the URL the verifier
+fetches (`test_hello_html_exists` → HTTP 404) and moca closes the task with a success claim every
+time. Claude Code passes it 2/2 and Pi 1/2; OpenCode is 0/2. That is a verification habit, not a
+capability wall — and it is the only cell in the whole 24-task set where moca has never passed.
 
-So the "literal-constraint defect class" this report proposed one round ago does not survive: it
-was built from `large-scale` (1/5) and `overfull` (3/5), which are the two *least* stable cells in
-the group. The honest backlog is much shorter:
+**`large-scale-text-editing` (1/6) is the second candidate** — the script ends with `wq` instead of
+`:wq`, i.e. the stated instruction is read and then dropped. It passes once, so a fix has to be
+validated with a 3-attempt cell run, not a single trial.
 
-1. **`configure-git-webserver` — 0/5, structural.** The server never answers the URL the verifier
-   fetches, and moca still closes with a success claim. One cell, one clean fix target, and the
-   only competitor that passes it is Claude Code.
-2. **`dna-assembly` — 1/5, structural.** A capability/strategy gap (only Pi solves it); not a
-   prompt-tightening problem.
-3. **`sanitize-git-repo` (2/5) and `large-scale-text-editing` (1/5) — flaky.** Both pass
-   sometimes, so a fix cannot be validated from a single trial; they need 3-attempt cell runs on
-   both sides of any change.
-4. **`overfull-hbox` — 3/5, no fix warranted.** Record it as variance and stop writing about it.
-
-**What that does to the ranking.** With `overfull` passing 3/3, `large-scale` 1/5 and
-`sanitize-git` 2/5, moca's expected 24-task score is closer to **19/24** than the 18/24 measured —
-inside the pack with Pi and OpenCode (20/24 each), not clearly behind it. The single-run ordering
-is softer than its confidence intervals already suggested.
+**Everything else in the loss column is noise** at this sample size, and the honest summary is
+that moca's 37/48 sits 2–3 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code
+(44/48), with overlapping confidence intervals at 48 trials. The ranking reproduced in direction,
+not in precision.
 
 ## Summary — where v0.7.10 stands, against every earlier release
 
-**Accuracy.** **11/12**, the best any release has scored on this subset: one cell above the
-previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round (v0.7.4,
-8/12). The only loss is `filter-js-from-html`, which no agent and no model has ever passed —
-on the eleven passable cells moca is **11/11**, and for the first time it is not the agent
-that drops cells its competitors solve.
+**Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
+above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
+(v0.7.4, 8/12). The only loss is `filter-js-from-html`, which no agent and no model has ever
+passed, so on the eleven passable cells moca is **11/11**. That is a *ceiling*, not a win: on the
+24-task set the same build is 18/24 and 19/24, behind every competitor — see below.
 
 The number is real, and it is **not attributable**. Three knobs moved together: release
 (v0.7.4 → v0.7.10, six releases), model (`glm-5.3-flash` → `deepseek-v4.1-flash`) and step
-budget (100 → 250). The cell run above rules out variance on the cells that moved (3/3 each),
-so the open question is *which* change earned the cells, not whether they were won.
+budget (100 → 250). The one-variable legs were run and then **retracted**: at one attempt each
+they move ±2–3 cells on twelve, so no per-knob split survives. What stands is the endpoint
+(8/12 → 11/12, the 11/12 measured twice), the model's economics, and the budget's tail cost —
+details in the attribution section, which states what a real split would cost.
 
-**The 12-task subset is spent as an instrument, and the 24-task set shows why it mattered.**
-moca still scores 11/12 on the old set and 18/24 on the new one, and the cell run shows that
-number undersells it: four of the five losses are flaky, so the expected rate is ~19/24 —
-level with Pi and OpenCode rather than behind them, and 22× cheaper per solved task. Only
-`configure-git-webserver` (0/5) and `dna-assembly` (1/5) are real defects, and the first is
-the one to fix.
-
-**Reproducibility.** The round was repeated end-to-end at identical settings (`…100949-2263993`,
-2 h 09 m): **11/12 again**, the same cell lost, **22/24** across the pair. 45 of the 48 cells
-came back with the same verdict, and all three flips were in the other agents' columns
-(Claude Code gained `extract-elf` and `fix-git`; OpenCode lost `kv-store-grpc`) — moca's
-column was identical from top to bottom. The second run was also the cheapest on record:
-$0.0166/solved, under v0.6.1's $0.0182.
-
-**Efficiency.** $0.0195/solved is the second-cheapest round ever — 2.7× cheaper than v0.7.4
-($0.0524) and behind only v0.6.1 ($0.0182). Token volume, 770 K/solved, is still 1.9×
-v0.6.1's 415 K: the remaining cost is prompt volume rather than step count, and 250 steps
-did not explode it (slowest trial 7.9 min, well inside the 900 s cap).
-
-**What the previous rounds got wrong, in hindsight.** v0.7.4's summary blamed its two losses
-on variance and on a search-space gap, and proposed no budget change. At 250 steps with
-deepseek both cells are 3/3, and mailman — the cell called "a ~50–70 % model-behaviour cell"
-and later "has not passed in a round since v0.3.0" — is 3/3 too. The old read was correct for
-its own settings and wrong as a general claim — but the general claim is not "more budget"
- either: the one-variable legs could not isolate the budget at all (its −1 reading was a bad
-draw, see the attribution section), so what the round actually bought is the release plus the
- serving model, with the budget's measurable effect on cost rather than accuracy.
-
-**Potential issues, in priority order**
-
-1. **The per-knob split was retracted; the endpoint stands.** One attempt per leg moves ±2–3
-   cells, and a 3× cell run at leg D's settings scored 10/12 where D scored 4/12 on those cells,
-   so "budget −1, release +2, model +2" is withdrawn (see the attribution section). What is
-   measured: 8/12 → 11/12, the second endpoint twice and identical; deepseek is both steadier and
-   ~2.5× cheaper per solved task; the budget's effect is tail cost. A real split costs ~$1.6 and
-   four hours of 3-attempt legs.
-2. **`filter-js-from-html` is a broken cell, not a hard one.** 0/17 across four agents and two
-   models; today, two of three attempts never produced a verdict because the verifier hung, and
-   the scored one failed a byte-exact comparison against parser re-serialisation. Carrying it in
-   the denominator understates every agent by one cell.
-3. **The mailman rule is no longer testable and may be obsolete.** It passed 3/3 without any
-   new rule — the budget/model change did the work, or the run simply did the delivery. Keep
-   the rule (it costs nothing) but stop citing it as the reason the cell passes.
-4. **Token volume is the remaining efficiency gap.** 770 K tok/solved against v0.6.1's 415 K, at
-   a similar pass count. That is a prompt/context question (cache reads dominate), not a step
-   question, and it is where the next 2× sits.
-5. **The noise is in the other agents' columns, not moca's.** Two full runs put moca at 11/12
-   with an identical cell pattern; the three flips in the pair were Claude Code (2 up) and
-   OpenCode (1 down). So a release claim still needs the repeat — but on this subset the
-   benchmark now has an agent whose score is stable enough to detect a one-cell change.
-
-**Proposed actions for the next moca version (and the rounds around it)**
-
-1. **Run the attribution leg** (§1 above) before crediting v0.7.10's changes with anything:
-   the same 12 tasks, one variable moved, 1 attempt. Report it as a delta against today's row,
-   not against the glm history.
-2. **Drop `filter-js` from the denominator.** Report `11/11` beside the raw `11/12`, and keep
-   the cell in the task list only as a known-broken marker until the task's test is fixed.
-3. **Keep 250 steps.** It cost nothing per solved task in this round and converted the two
-   cells that 100 and 150 could not. Re-check it against v0.6.1's efficiency only in the
-   attribution leg, where the model is held fixed.
-4. **Stop writing rules for mailman and custom-memory** until one regresses at these settings;
-   if one does, run the 3 × cell slice before touching a prompt rule.
-5. **Rebaseline the cross-agent comparison** on the 10-25 sweep (`docs/agents-bench-report.md`);
-   the 2026-10-16 glm table is history now, and its ranks do not transfer.
+**The 12-task subset is spent as an instrument; the 24-task set is the live one.** Two identical
+runs put moca at 18 and 19 of 24 — last in both, 2–3 cells behind Pi and OpenCode and 7 behind
+Claude Code, still 22× cheaper per solved task. The cell-level picture is much narrower than the
+score suggests: **`configure-git-webserver` (0/6) is the only cell moca has never passed**, with
+`large-scale-text-editing` (1/6) as the second candidate. Three separate cell-level claims in this
+report's history turned out to be noise (the budget's regressions, the literal-constraint class,
+`dna-assembly` as a capability gap) — every one of them was caught by repeating the cells before
+acting on them, which is the standard this report now holds itself to.
 
 ## Update procedure
 

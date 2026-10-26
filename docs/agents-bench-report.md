@@ -20,88 +20,96 @@ cross-agent view; the release-by-release moca history is in
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 2026-10-25, 24-task set (96 trials, 4 h 07 m)
+## Headline — 24-task set, two identical runs (192 trials)
 
-The twelve-task set saturated in this same sweep: **all four agents scored 11/12 on it**, the
-only loss being the task-side `filter-js-from-html`. The 24-task set — those 12 plus twelve cells
-picked from the screening sweep — is the first instrument that separates them.
+Two runs of the 24-task set, same pins, same models, same 250-step budget, one attempt per cell
+per run: `cab-subset-20261025-174057-3299781` (4 h 07 m) and `cab-subset-20261026-134414-1158148`
+(4 h 37 m), $1.54 and $1.53 zen cash, $10.54 and $10.31 Claude API-equivalent.
 
-| agent | version | model | solved | 95 % CI | old 12 | new 12 | cost | $/solved | tok/solved | median run |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **Claude Code** | 2.1.310 | claude-sonnet-5 | **21/24** | 69–96 % | 11/12 | **10/12** | $10.5445 eq | $0.5021 eq | 1.01 M | **120 s** |
-| **OpenCode** | 2.1.4 | deepseek | 20/24 | 64–93 % | 11/12 | 9/12 | $0.6102 | $0.0305 | 1.42 M | 111 s |
-| **Pi** | 1.4.0 | deepseek | 20/24 | 64–93 % | 11/12 | 9/12 | $0.5692 | $0.0285 | 1.21 M | 157 s |
-| **moca** | v0.7.10 | deepseek | **18/24** | 55–88 % | 11/12 | 7/12 | **$0.4088** | **$0.0227** | **0.85 M** | 133 s |
+| agent | run 1 | run 2 | pooled | 95 % CI (pooled) | $/solved (run 2) |
+|---|---|---|---|---|---|
+| **Claude Code** 2.1.310 | 21/24 | **23/24** | **44/48** | 80–97 % | $0.4483 eq |
+| **Pi** 1.4.0 | 20/24 | 20/24 | 40/48 | 70–91 % | $0.0238 |
+| **OpenCode** 2.1.4 | 20/24 | 19/24 | 39/48 | 68–90 % | $0.0308 |
+| **moca** v0.7.10 | 18/24 | 19/24 | **37/48** | 63–87 % | $0.0249 |
 
-Zen cash for the sweep **$1.59**; Claude **$10.54 API-equivalent, $0 cash**. Job
-`cab-subset-20261025-174057-3299781`.
+**The ordering reproduced.** moca is last in both runs and Claude Code first in both, and the
+pooled gaps are 7 cells to Claude and 2–3 to Pi and OpenCode. The 12-task set again saturated
+inside both runs — 11/12 for all four, only `filter-js` lost — so the separation is still entirely
+in the twelve added cells.
 
-**Every point of separation is in the twelve added cells.** On the original twelve the four
-agents are indistinguishable at 11/12 — including Claude Code, which scored 8/12 and 10/12 in the
-two earlier sweeps of that set. On the twelve added cells it is Claude 10, OpenCode 9, Pi 9,
-**moca 7**.
+**But the instrument is noisy: 13 of 96 cells changed verdict between two identical runs (13.5 %).**
+The 12-task hold study flipped 3 of 48 (6 %); the harder cells are twice as unstable.
 
-**moca loses six cells, and a competitor passes every one of them.** No cell is moca-only, and
-`filter-js-from-html` is the only cell all four fail:
+| cell | agent | run 1 → run 2 |
+|---|---|---|
+| `configure-git-webserver` | Pi | ❌ → ✅ |
+| `dna-assembly` | moca, Claude | ❌ → ✅ |
+| `dna-assembly` | Pi | ✅ → ❌ |
+| `dna-insert` | moca | ✅ → ❌ |
+| `dna-insert` | Claude | ❌ → ✅ |
+| `filter-js-from-html` | moca | ❌ → ⏱ (no verdict, task-side cell) |
+| `gcode-to-text` | Pi | ✅ → ❌ |
+| `large-scale-text-editing` | OpenCode | ✅ → ❌ |
+| `large-scale-text-editing` | Pi | ❌ → ✅ |
+| `overfull-hbox` | OpenCode | ❌ → ✅ |
+| `sanitize-git-repo` | moca | ❌ → ✅ |
+| `sanitize-git-repo` | OpenCode | ✅ → ❌ |
 
-| moca's loss | failing test | who passes it | moca over 3 more attempts |
-|---|---|---|---|
-| `configure-git-webserver` | `test_hello_html_exists` (HTTP 404) | Claude Code only | **0/3** (0/5 total) — structural |
-| `dna-assembly` | `test_primers` | Pi only | **0/3** (1/5) — structural |
-| `large-scale-text-editing` | `test_apply_macros_well_formed` (`wq` vs `:wq`) | OpenCode, Claude | 1/3 (1/5) — flaky ~20 % |
-| `overfull-hbox` | `test_input_file_matches` (word outside `synonyms.txt`) | Pi, Claude | **3/3** (3/5) — passes more often than not |
-| `sanitize-git-repo` | `test_removal_of_secret_information` | OpenCode, Claude | 1/3 (2/5) — flaky ~40 % |
-| `filter-js-from-html` | both (task-side, byte-exact) | nobody, in any run | task-side |
+### What survives at cell level
 
-The cell run (`…221348-209862`, 3 attempts per cell plus a `log-summary` canary that passed 3/3)
-changes the reading of this table: **four of moca's five real losses are not stable defects.**
-`overfull-hbox` passing 3/3 in particular means moca's expected 24-task score is closer to
-**19/24** than the 18 it measured — inside the pack with Pi and OpenCode, not clearly behind it.
+**Exactly one cell is a stable defect: `configure-git-webserver`.** moca has never passed it —
+0/6 across the screening sweep, both runs and a 3-attempt cell run — while Claude Code is 2/2 and
+Pi 1/2. OpenCode is 0/2 there as well, so it is hard for two of four agents, not a moca-only wall.
 
-**The cost ranking survives the harder set.** moca is still the cheapest by every measure —
-$0.0227/solved and 0.85 M tok/solved, ~25 % under Pi and OpenCode and 22× under Claude's
-API-equivalent. Losing three cells to Claude Code costs $0.48 per solved task.
+**Everything else that looked like a finding was noise:**
 
-**What this does not establish.** The confidence intervals overlap (moca 55–88 %, OpenCode/Pi
-64–93 %, Claude 69–96 %), so "moca is last" and "Claude is first" are directional at n=24 with
-one attempt — the ordering is consistent with the per-cell detail, not proven by the totals. Two
-of moca's five screening failures did **not** reproduce here (`gcode-to-text` and `dna-insert`
-passed), and the 3× cell run then showed four of the five remaining losses are flaky too: at
-these settings a single 24-task run samples a noisy subset of cells, and moca's own expected rate
-is ~19/24. **Repeating this sweep unchanged — all four agents — is what would make the ranking a
-measurement**; a single-agent repeat cannot, because the comparison, not the column, is the
-quantity in doubt.
+| cell | moca across all samples | reading |
+|---|---|---|
+| `configure-git-webserver` | **0/6** | structural — the only one |
+| `large-scale-text-editing` | 1/6 | near-structural, `wq` vs `:wq` |
+| `overfull-hbox` | 3/7 | coin flip; the 3× cell run passed 3/3 |
+| `sanitize-git-repo` | 3/6 | coin flip |
+| `dna-assembly` | 2/6 | coin flip **for all four agents** (OpenCode 0/2, Pi 1/2, Claude 1/2) |
+| `dna-insert` | 1/3 | coin flip |
+| `filter-js-from-html` | never passed in any run (0/25 in the 12-task hold study) | task-side, byte-exact test |
 
-### Per-task matrix — 24 tasks (seconds and turns per trial)
+So this report's earlier claims about `dna-assembly` being a moca capability gap, and about a
+"literal-constraint defect class" made of `large-scale` + `overfull`, are both withdrawn: the
+first is a hard cell for everybody, the second is built on the two least stable cells in the set.
+
+### Per-task matrix, both runs (✅ run 1 · ❌ run 1)
 
 | task | moca | opencode | pi | claude-code |
 |---|---|---|---|---|
-| break-filter-js-from-html | ✅ (95 s, 12 t) | ✅ (50 s, 10 t) | ✅ (55 s, 8 t) | ✅ (117 s, 12 t) |
-| build-cython-ext | ✅ (280 s, 52 t) | ✅ (229 s, 37 t) | ✅ (249 s, 30 t) | ✅ (306 s, 59 t) |
-| circuit-fibsqrt | ✅ (292 s, 29 t) | ✅ (473 s, 17 t) | ✅ (762 s, 7 t) | ✅ (706 s, 19 t) |
-| cobol-modernization | ✅ (280 s, 38 t) | ✅ (579 s, 82 t) | ✅ (650 s, 60 t) | ✅ (447 s, 24 t) |
-| configure-git-webserver | ❌ (110 s, 15 t) | ❌ (225 s, 32 t) | ❌ (122 s, 12 t) | ✅ (124 s, 15 t) |
-| crack-7z-hash | ✅ (371 s, 20 t) | ✅ (300 s, 27 t) | ✅ (286 s, 19 t) | ✅ (292 s, 21 t) |
-| custom-memory-heap-crash | ✅ (95 s, 20 t) | ✅ (116 s, 18 t) | ✅ (140 s, 21 t) | ✅ (93 s, 10 t) |
-| db-wal-recovery | ✅ (140 s, 28 t) | ✅ (29 s, 6 t) | ✅ (43 s, 9 t) | ✅ (67 s, 16 t) |
-| dna-assembly | ❌ (445 s, 35 t) | ❌ (721 s, 48 t) | ✅ (336 s, 33 t) | ❌ (607 s, 22 t) |
-| dna-insert | ✅ (290 s, 30 t) | ✅ (397 s, 25 t) | ✅ (553 s, 59 t) | ❌ (176 s, 18 t) |
-| extract-elf | ✅ (44 s, 11 t) | ✅ (106 s, 15 t) | ✅ (133 s, 21 t) | ✅ (86 s, 9 t) |
-| filter-js-from-html | ❌ (268 s, 19 t) | ❌ (733 s, 65 t) | ❌ (896 s, 56 t) | ❌ (153 s, 6 t) |
-| fix-git | ✅ (30 s, 11 t) | ✅ (33 s, 12 t) | ✅ (35 s, 9 t) | ✅ (27 s, 8 t) |
-| gcode-to-text | ✅ (673 s, 71 t) | ✅ (751 s, 51 t) | ✅ (348 s, 45 t) | ✅ (212 s, 14 t) |
-| git-multibranch | ✅ (179 s, 22 t) | ✅ (83 s, 13 t) | ✅ (115 s, 16 t) | ✅ (67 s, 14 t) |
-| kv-store-grpc | ✅ (38 s, 11 t) | ✅ (75 s, 18 t) | ✅ (26 s, 9 t) | ✅ (43 s, 11 t) |
-| large-scale-text-editing | ❌ (258 s, 15 t) | ✅ (106 s, 12 t) | ❌ (103 s, 11 t) | ✅ (94 s, 7 t) |
-| log-summary-date-ranges | ✅ (15 s, 5 t) | ✅ (19 s, 5 t) | ✅ (19 s, 5 t) | ✅ (23 s, 6 t) |
-| mailman | ✅ (325 s, 53 t) | ✅ (247 s, 35 t) | ✅ (456 s, 52 t) | ✅ (405 s, 57 t) |
-| multi-source-data-merger | ✅ (75 s, 18 t) | ✅ (72 s, 12 t) | ✅ (37 s, 5 t) | ✅ (55 s, 6 t) |
-| nginx-request-logging | ✅ (44 s, 11 t) | ✅ (34 s, 8 t) | ✅ (36 s, 8 t) | ✅ (41 s, 10 t) |
-| overfull-hbox | ❌ (125 s, 22 t) | ❌ (147 s, 25 t) | ✅ (175 s, 30 t) | ✅ (174 s, 28 t) |
-| password-recovery | ✅ (49 s, 14 t) | ✅ (71 s, 14 t) | ✅ (271 s, 20 t) | ✅ (286 s, 19 t) |
-| sanitize-git-repo | ❌ (54 s, 12 t) | ✅ (82 s, 13 t) | ❌ (199 s, 23 t) | ✅ (101 s, 13 t) |
+| break-filter-js-from-html | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| build-cython-ext | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| circuit-fibsqrt | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| cobol-modernization | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| configure-git-webserver | ❌❌ | ❌❌ | ❌✅ | ✅✅ |
+| crack-7z-hash | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| custom-memory-heap-crash | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| db-wal-recovery | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| dna-assembly | ❌✅ | ❌❌ | ✅❌ | ❌✅ |
+| dna-insert | ✅❌ | ✅✅ | ✅✅ | ❌✅ |
+| extract-elf | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| filter-js-from-html | ❌⏱ | ❌❌ | ❌❌ | ❌❌ |
+| fix-git | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| gcode-to-text | ✅✅ | ✅✅ | ✅❌ | ✅✅ |
+| git-multibranch | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| kv-store-grpc | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| large-scale-text-editing | ❌❌ | ✅❌ | ❌✅ | ✅✅ |
+| log-summary-date-ranges | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| mailman | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| multi-source-data-merger | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| nginx-request-logging | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| overfull-hbox | ❌❌ | ❌✅ | ✅✅ | ✅✅ |
+| password-recovery | ✅✅ | ✅✅ | ✅✅ | ✅✅ |
+| sanitize-git-repo | ❌✅ | ✅❌ | ❌❌ | ✅✅ |
 
-Legend: ✅ pass · ❌ fail · ⏱ no verdict · `t` = assistant turns from the agent transcript.
+Legend: first mark = run 1, second = run 2 · ⏱ = no verdict (task-side verifier timeout).
+Per-trial seconds and turns for run 1 are in the run-1 job's `result.json`; the aggregate
+efficiency table is above.
 
 ## Headline — 2026-10-25, 12-task set (run 1 of 2, 48 trials, 1 h 50 m) — superseded by the 24-task baseline
 
