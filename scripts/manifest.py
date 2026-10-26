@@ -151,6 +151,39 @@ def image_digests(job_dir: Path) -> dict:
     return digests
 
 
+def shard_of(args: argparse.Namespace) -> dict | None:
+    """Which slice of which parent set this job measured.
+
+    A shard's own task-list fingerprint cannot prove two jobs measured the same
+    cells, so the parent list's fingerprint travels with it. Without that, every
+    sharded comparison would either warn or silently assume comparability.
+    """
+    raw = getattr(args, "shard", None)
+    if not raw:
+        return None
+    index, _, count = raw.partition("/")
+    try:
+        k, n = int(index), int(count)
+    except ValueError:
+        raise SystemExit(f"manifest: --shard {raw!r} must look like k/n")
+    parent: list[str] = []
+    if getattr(args, "parent_tasks", None):
+        path = Path(args.parent_tasks)
+        if not path.is_file():
+            raise SystemExit(f"manifest: --parent-tasks {path} does not exist")
+        parent = [
+            line.split()[0]
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+    return {
+        "index": k,
+        "count": n,
+        "parent_tasks": str(args.parent_tasks) if getattr(args, "parent_tasks", None) else None,
+        "parent_n_tasks": len(parent) or None,
+        "parent_task_list_sha256": sha256_json(sorted(parent)) if parent else None,
+    }
+
 def cmd_start(args: argparse.Namespace) -> int:
     config_path = Path(args.config)
     config = json.loads(config_path.read_text())
@@ -180,6 +213,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             "n_concurrent_trials": config.get("n_concurrent_trials"),
         },
         "dataset": dataset_of(config),
+        "shard": shard_of(args),
         "agents": agents_of(config),
         "knobs": knobs,
         "trials": None,
@@ -226,12 +260,16 @@ def cmd_finish(args: argparse.Namespace) -> int:
 
 def comparable(manifest: dict) -> dict:
     """The subset of a manifest that must match for two jobs to be comparable."""
+    dataset = manifest.get("dataset") or {}
+    shard = manifest.get("shard") or {}
     return {
         "harbor.version": (manifest.get("harbor") or {}).get("version"),
         "harbor.python": (manifest.get("harbor") or {}).get("python"),
         "repo.commit": (manifest.get("repo") or {}).get("commit"),
-        "dataset.version": (manifest.get("dataset") or {}).get("version"),
-        "dataset.task_list_sha256": (manifest.get("dataset") or {}).get("task_list_sha256"),
+        "dataset.version": dataset.get("version"),
+        # A shard's own list is a subset by construction; the parent list is what
+        # makes "same cells" a checkable claim, so compare that instead.
+        "task_set": shard.get("parent_task_list_sha256") or dataset.get("task_list_sha256"),
         "agents": manifest.get("agents"),
         "knobs": manifest.get("knobs"),
     }
@@ -248,6 +286,8 @@ def main(argv: list[str] | None = None) -> int:
     start.add_argument("--harbor-version")
     start.add_argument("--harbor-python")
     start.add_argument("--knob", action="append", default=[])
+    start.add_argument("--shard")
+    start.add_argument("--parent-tasks")
     start.add_argument("--started-at")
     start.set_defaults(func=cmd_start)
 

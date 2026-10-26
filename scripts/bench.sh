@@ -262,11 +262,21 @@ cmd_run() { # profile [extra harbor args...]
   # different config") and one dies instantly. The pid makes it unique.
   # Manifest: the toolchain, the knob values and the task-list fingerprint, written
   # BEFORE harbor starts so it survives a crash, then finished into the job dir.
-  local job_name="cab-$profile-$run_id"
+  # Shard tag in the job name so a stitched set is self-describing later
+  # (`cab-subset-s2of5-<stamp>-<pid>`); the profile stays first so existing
+  # parsing keeps working.
+  local shard_tag=""
+  if [ -n "${SHARD:-}" ]; then shard_tag="-s${SHARD//\//of}"; fi
+  local job_name="cab-$profile$shard_tag-$run_id"
   local manifest="results/manifests/$job_name.json"
   local hp; hp="$("$(uv tool dir)/harbor/bin/python" -V 2>/dev/null | awk '{print $2}')"
+  local shard_args=()
+  if [ -n "${SHARD:-}" ]; then
+    shard_args+=(--shard "$SHARD")
+    [ -n "${TASK_FILE:-}" ] && shard_args+=(--parent-tasks "$TASK_FILE")
+  fi
   python3 "$REPO/scripts/manifest.py" start \
-    --config "$cfg" --job-name "$job_name" --out "$manifest" \
+    --config "$cfg" --job-name "$job_name" --out "$manifest" "${shard_args[@]}" \
     --harbor-version "$(harbor_version)" --harbor-python "${hp:-unknown}" \
     --knob "HARBOR_VERSION=$HARBOR_VERSION" --knob "HARBOR_PYTHON=$HARBOR_PYTHON" \
     --knob "MOCA_VERSION=${MOCA_VERSION:-}" --knob "MOCA_MAX_STEPS=${MOCA_MAX_STEPS:-}" \
@@ -275,6 +285,7 @@ cmd_run() { # profile [extra harbor args...]
     --knob "ZEN_MODEL=${ZEN_MODEL:-}" --knob "CLAUDE_MODEL=${CLAUDE_MODEL:-}" \
     --knob "N_ATTEMPTS=${N_ATTEMPTS:-}" --knob "N_CONCURRENT=${N_CONCURRENT:-}" \
     --knob "AGENTS=${AGENTS:-all}" --knob "TASK_NAMES=${TASK_NAMES:-}" \
+    --knob "SHARD=${SHARD:-}" --knob "TASK_FILE=${TASK_FILE:-}" \
     || echo "WARN: could not write the run manifest (the run continues)" >&2
 
   set +e

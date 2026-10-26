@@ -29,6 +29,7 @@ make setup                   # uv tool install harbor==$HARBOR_VERSION + docker 
 make test                    # harness unit tests (5 suites): moca run line, report parsers, pin guard
 make doctor                  # docker, harbor, adapter import, credential presence
 make audit                   # oracle+nop over docs/tb2-all.txt: no tokens, batches + image cleanup
+make sharded PROFILE=full SHARDS=5   # one set as 5 sequential jobs; resumable, prunes images between
 make doctor ARGS=--probe     # + one live request per agent (cents; needs .env)
 make dry-run ARGS=smoke      # validate config + import path + kwargs + credentials — no pulls, no tokens
 bash -n scripts/bench.sh && python3 -m py_compile scripts/render_config.py
@@ -75,6 +76,14 @@ make -n <target>             # show what a target would run, without running it
   vacuous (nop passes) / both-broken / no-verdict / unknown. **`no-verdict` is never folded into
   a side** — an infrastructure failure is not a task-quality verdict. A task-side entry in
   `docs/task-side.json` should cite an audit row or a transcript.
+- **Sharding (`SHARD=k/n`, `scripts/sharded_run.sh`)** — a job may be one slice of a set,
+  because 89 images ≈ 145 GB uncompressed and Harbor holds every image for a job's
+  lifetime. Contracts: the slice is a contiguous ceil-sized block (disjoint, ordered,
+  union = parent list); the manifest records `shard.parent_task_list_sha256`, and
+  `comparable()` compares *that* rather than the slice's own fingerprint; a stitched
+  `report`/`compare` prints its coverage (`71/89, 18 uncovered`) and warns when shards
+  come from different parents. **A partial set must never read as a whole one.** `SHARD`
+  requires an explicit list — slicing `n_tasks` would guess what Harbor picks.
 - **`scripts/manifest.py`** — `bench.sh run` calls `start` before launching Harbor and `finish`
   after it, so every job directory carries `manifest.json`: harbor version + interpreter, repo
   commit/branch/dirty, dataset + task-list fingerprint, agents with model ids and versions, the

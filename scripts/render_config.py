@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -99,6 +100,28 @@ def agents(profile: str) -> list[dict]:
     return [v for _, v in entries]
 
 
+def parse_shard(raw: str | None) -> tuple[int, int] | None:
+    if raw in (None, ""):
+        return None
+    m = re.fullmatch(r"(\d+)/(\d+)", raw.strip())
+    if not m:
+        sys.exit(f"render_config: SHARD={raw!r} must look like k/n (1-based, k <= n)")
+    k, n = int(m.group(1)), int(m.group(2))
+    if n < 1 or not 1 <= k <= n:
+        sys.exit(f"render_config: SHARD={raw!r}: need n >= 1 and 1 <= k <= n")
+    return k, n
+
+
+def shard_slice(names: list[str], shard: tuple[int, int]) -> list[str]:
+    """Contiguous ceil-sized blocks, so the shards are disjoint and their union
+    is the input list — the property the report uses to stitch a run back
+    together. Contiguous rather than round-robin so a shard stays a *slice* of
+    the ordered list (docs/tb2-all.txt puts the cheap cells first)."""
+    k, n = shard
+    size = -(-len(names) // n)
+    start = (k - 1) * size
+    return names[start : start + size]
+
 def build(profile: str) -> dict:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     cfg: dict = {
@@ -137,6 +160,21 @@ def build(profile: str) -> dict:
             dataset["task_names"] = drop_defective([s.strip() for s in names.split(",") if s.strip()], profile)
         else:
             dataset["n_tasks"] = env_int("N_TASKS", 20)
+    # A shard is a slice of an explicit list; slicing an n_tasks dataset would
+    # mean guessing which tasks Harbor picks, so refuse rather than pretend.
+    shard = parse_shard(env("SHARD"))
+    if shard:
+        if "task_names" not in dataset:
+            sys.exit("render_config: SHARD needs an explicit task list (TASK_FILE or TASK_NAMES)")
+        full = dataset["task_names"]
+        sliced = shard_slice(full, shard)
+        if not sliced:
+            sys.exit(f"render_config: SHARD={shard[0]}/{shard[1]} selects no tasks from {len(full)}")
+        dataset["task_names"] = sliced
+        print(
+            f"render_config: shard {shard[0]}/{shard[1]} -> {len(sliced)} of {len(full)} tasks",
+            file=sys.stderr,
+        )
     cfg["datasets"] = [dataset]
     return cfg
 

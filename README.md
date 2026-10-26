@@ -187,6 +187,42 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **Your own tasks/datasets**: Harbor supports local task dirs, Git-task repos, and custom registries — point a `tasks:`/`datasets:` entry at them (schema: `harbor job schema`; docs: https://docs.harborframework.com/tasks/overview).
 - **New profile** (e.g. a curated 5-task set): add a branch in `build()` in `scripts/render_config.py` or just use `TASK_NAMES`.
 
+## Sharding a run (why, and when)
+
+Harbor keeps every image a job pulls for that job's lifetime. Uncompressed, the 89
+Terminal-Bench 2.0 images are **~145 GB** (Docker Hub compressed sizes × the 2.6–4.0×
+decompression ratio measured on images already pulled here), plus ~15 GB of container
+scratch for four concurrent agents. A 96 GB host cannot run that as one job.
+
+So a set can be measured in slices:
+
+```bash
+TASK_FILE=docs/tb2-all.txt make sharded PROFILE=full SHARDS=5   # s1of5 … s5of5, pruned between
+```
+
+Each shard is an ordinary job (`cab-<profile>-s<k>of<n>-<stamp>-<pid>`) with its own
+manifest, so it is resumable: a shard that dies is re-run alone, and nothing already
+measured is lost. Stitching is a *reading* operation — pass every shard job to
+`report`/`compare` and the tasks are pooled:
+
+```bash
+python3 scripts/bench_report.py report $(ls -d results/jobs/cab-full-s*of5-* | xargs -n1 basename)
+```
+
+Three invariants keep that honest, and the test suite pins all three:
+
+- **disjoint, ordered, covering** — `SHARD=k/n` takes a contiguous ceil-sized block, so
+  the shards' union is exactly the parent list and no task is measured twice;
+- **the parent fingerprint travels with the shard** — a shard's own task list cannot
+  prove two jobs measured the same cells, so `manifest.shard.parent_task_list_sha256`
+  records the whole list, and `comparable()` compares that;
+- **the report says what it covers** — a stitched report prints `tasks covered: 71/89
+  (2 uncovered)` and warns when shards come from different parents. A partial set never
+  reads as a whole one.
+
+`SHARD` needs an explicit list (`TASK_FILE` or `TASK_NAMES`); slicing an `n_tasks`
+dataset would mean guessing which tasks Harbor picks, so the render refuses instead.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -223,6 +259,8 @@ python3 scripts/bench_report.py export <job>           # summary.json: trials + 
 python3 scripts/bench_report.py report <job> --out=docs/bench-latest.md   # generated tables
 python3 scripts/bench_report.py diff <job> <task>      # why one cell went differently
 make audit                                            # oracle/nop: is every task a task?
+make sharded PROFILE=subset SHARDS=4                  # same set, N sequential jobs, images pruned between
+SHARD=2/5 TASK_FILE=docs/tb2-all.txt make dry-run ARGS=full   # what one shard would run
 python3 scripts/bench_report.py audit $(cat results/audit/jobs/*.job | sort -u)  # the findings
 
 `compare` is the only command that makes a claim. Every agent runs the same
