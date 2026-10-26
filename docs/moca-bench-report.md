@@ -17,6 +17,7 @@ and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
 | | |
 |---|---|
+| Harness | Harbor **0.25.0** (pinned and enforced from 2026-10-26; all earlier rows ran 0.24.0). The upgrade changed `ModelConnectionSpec`'s API, not the trial schema — `result.json`, `verifier_result.rewards.reward` and the ATIF/moca transcripts are unchanged |
 | Dataset | `terminal-bench@2.0`, the fixed 12-task subset in [`docs/tb2-subset-12.txt`](tb2-subset-12.txt) — 2 easy / 9 medium / 1 hard-medium across 6 categories. The run history and matrix below stay on that subset for continuity; 24-task rounds ([`docs/tb2-subset-24.txt`](tb2-subset-24.txt)) are recorded in their own section |
 | Model | `opencode-go/deepseek-v4.1-flash` (zen key, `OPENCODE_API_KEY`) for the two v0.7.10 rows of 10-25; **every earlier row ran `glm-5.3-flash`**, which was the default until then. The 10-25 glm leg⁴ is the controlled cross-check at the same release and budget, and the 10-18 cell slice used deepseek as its second leg. |
 | moca | `--mode yolo`, `context.maxSteps = 250` for the v0.7.10 rows and both one-variable legs of 10-25 (**100 for every row before those**; moca's own default is 40), 1 attempt per task, `--max-retries 1`, `N_CONCURRENT=2` |

@@ -12,9 +12,10 @@ setup: ## install Harbor (pinned) + check docker
 doctor: ## check docker/harbor/adapter/credentials (ARGS=--probe for live probes)
 	./scripts/bench.sh doctor $(ARGS)
 
-test: ## harness unit tests: moca run line + session mirror, report parsers (no spend)
+test: ## harness unit tests: moca run line + session mirror, report parsers, harbor pin guard (no spend)
 	PYTHONPATH="$(CURDIR)" "$$(uv tool dir)/harbor/bin/python" test/moca_run_command_test.py
 	python3 test/bench_report_steps_test.py
+	python3 test/bench_pin_guard_test.py
 
 probe: ## live credential probes (one tiny request per agent)
 	./scripts/bench.sh probe

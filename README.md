@@ -28,7 +28,7 @@ results/                job results + rendered configs (gitignored)
 .env                    your credentials + run knobs (gitignored)
 ```
 
-Two integrations are custom because the upstream packages moved ahead of Harbor 0.24.0:
+Two integrations are custom because the upstream packages moved ahead of Harbor 0.25.0:
 `agents/moca.py` (moca is not pre-integrated) and `agents/opencode_v2.py` (Harbor's
 built-in `opencode` agent drives v1: the v2 npm package is `@opencode/cli`, not
 `opencode-ai`, and v2 moved `--model` onto `run` — the subclass overrides install and
@@ -64,7 +64,7 @@ One name, deliberately: `OPENCODE_API_KEY` is moca's own built-in default for th
 
 ```bash
 cd ~/projects/coding-agent-bench
-make setup          # installs Harbor (pinned 0.24.0) and checks Docker
+make setup          # installs Harbor (pinned 0.25.0) and checks Docker
 cp .env.example .env  # then edit .env and fill in the credentials
 make doctor         # docker + harbor + moca adapter import + credential presence
 make test           # harness unit test: the moca run line + session mirror (no spend)
@@ -163,7 +163,8 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 | `N_ATTEMPTS` | `1` | attempts per task × agent (raise for variance estimates) |
 | `AGENTS` | all four | comma-separated subset |
 | `JOBS_DIR` | `results/jobs` | where job results go |
-| `HARBOR_VERSION` | `0.24.0` | Harbor pin |
+| `HARBOR_VERSION` | `0.25.0` | Harbor pin — `run`/`dry-run` refuse to start on any other installed version |
+| `HARBOR_PYTHON` | `3.13` | Interpreter `setup` builds the Harbor tool env with (uv defaults to the newest Python; 3.15 cannot build `fastuuid`, and a failed install leaves no `harbor` binary at all) |
 
 Anything the wrapper doesn't expose can be passed straight through to Harbor:
 
@@ -173,7 +174,7 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 
 ## Reproducibility
 
-- **Harbor**: pinned by `HARBOR_VERSION` (`make setup` installs exactly that).
+- **Harbor**: pinned by `HARBOR_VERSION`. `make setup` installs exactly that version with `--python $HARBOR_PYTHON`, and `scripts/bench.sh run|dry-run` **hard-fail** when the installed version differs — `HARBOR_ALLOW_VERSION_MISMATCH=1` is the deliberate one-off override.
 - **moca**: pinned by `MOCA_VERSION` (release tarball, sha256-verified against the release's `checksums.txt`).
 - **Dataset**: `TB_VERSION=2.0` (use `TASK_NAMES` for exact task sets; Harbor caches task copies). The 12-task benchmark set is checked in as `docs/tb2-subset-12.txt` — `TASK_NAMES=$(tr '\n' ',' < docs/tb2-subset-12.txt | sed 's/,$//')` (it lives in the repo so it can't be lost to a scratch-dir sweep).
 - **Agents**: all four are pinned — moca `MOCA_VERSION` (release tarball, sha256-verified), OpenCode `OPENCODE_VERSION` (npm `@opencode/cli`), Pi `PI_VERSION` (npm `@earendil-works/pi-coding-agent`) and Claude Code `CLAUDE_VERSION` (npm). `MOCA_MAX_STEPS` and `MOCA_MODE` record moca's step budget and permission stance. All agents accept `--ak version=…`; values must be valid for that tool's package manager.
@@ -194,7 +195,8 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 | OpenCode fails to call `opencode-go` | The adapter relies on `OPENCODE_API_KEY`. Debug lever: `--ak opencode_config='{"provider":{"opencode-go":{"options":{"apiKey":"{env:OPENCODE_API_KEY}"}}}}'` (OpenCode supports `{env:…}` config interpolation). |
 | Docker out of disk (TB2 images are GBs) | `make prune` between runs; check free space with `make doctor`. |
 | `permission denied` on docker | `sudo usermod -aG docker $USER` + re-login. |
-| Harbor behaving oddly after an upgrade | Keep the pin: bump `HARBOR_VERSION` in `.env`, then `uv tool uninstall harbor && make setup`. |
+| `error: harbor X is installed but the pin is Y` | The guard working. `./scripts/bench.sh setup --force` reinstalls the pin (needs python `$HARBOR_PYTHON`). Do not bypass it to get a run started. |
+| Harbor behaving oddly after an upgrade | Bump `HARBOR_VERSION` deliberately (`.env`), `./scripts/bench.sh setup --force`, then re-run the ladder — the adapters are written against one release, and 0.25 moved `ModelConnectionSpec` into `harbor.agents.agent_auth_resolution`. |
 | Job failed halfway / rate limits | Re-run; Harbor resumes what's cached. Add `--max-retries 1` for transient API errors. |
 | Two legs launched in the same second | Handled: `run` passes a unique `--job-name` because Harbor names job directories by second — without it one leg dies instantly with `Job directory … already exists and cannot be resumed with a different config`. |
 | Harbor hangs in `Collecting main service artifacts` after an agent-phase timeout | The trial's files are already complete on disk (`agent/moca-session.jsonl`, `agent/moca.txt`, `exception.txt`, `verifier/`): kill the harbor process and read them — a leg stuck there does not finish on its own. |
@@ -221,7 +223,7 @@ Add the row (moca report) or the column (agents report), re-derive the matrix, w
 
 ## Status & history
 
-Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.10 · OpenCode 2.1.4 · Pi 1.4.0 · Claude Code 2.1.310 · dataset `terminal-bench@2.0` with the checked-in 12-task subset.
+Current pins (see [Knobs](#knobs-env)): Harbor 0.25.0 · moca v0.7.10 · OpenCode 2.1.4 · Pi 1.4.0 · Claude Code 2.1.310 · dataset `terminal-bench@2.0` with the checked-in 12-task subset.
 
 - `make doctor` validates docker, Harbor, the adapter import (with its default pin and key variable) and credential presence; it also reads the provider's `/models` catalog and warns when `ZEN_MODEL` is not listed there — moca ≥ v0.7.10 validates the configured model against its discovered list, so a retired id must be caught before a sweep, not during one.
 - `--dry-run` passes both profiles (smoke = 4 trials; subset with `docs/tb2-subset-12.txt` = 48 trials).
@@ -234,4 +236,4 @@ Current pins (see [Knobs](#knobs-env)): Harbor 0.24.0 · moca v0.7.10 · OpenCod
 - Harbor docs — https://docs.harborframework.com
 - Terminal-Bench — https://www.tbench.ai (leaderboard: https://www.tbench.ai/leaderboard/terminal-bench/2.0)
 - Custom agents guide — https://docs.harborframework.com/agents/custom-agents
-- Uploading to the Hub: `harbor upload results/jobs/<job>`. Harbor masks agent-env values in stored configs (verified on 0.24.0: `oc_s****ifJ`), and masks can keep a short prefix/suffix — review the job directory before sharing, or pass secrets at launch time (`--launch --one-off-secret`) instead of by `--ae`.
+- Uploading to the Hub: `harbor upload results/jobs/<job>`. Harbor redacts agent-env values in stored configs (verified on 0.25.0: the entry is stored as the reference `${OPENCODE_API_KEY}`; 0.24.0 wrote `oc_s****ifJ`), and redaction can keep a short prefix/suffix — review the job directory before sharing, or pass secrets at launch time (`--launch --one-off-secret`) instead of by `--ae`.
