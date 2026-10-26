@@ -70,13 +70,20 @@ ran the pipeline end to end (403 before the push, 200 after), then restored a pr
 and got a 404 for its tidiness. The task text even says login is out of scope, while the verifier
 requires exactly `git`/`password`.
 
+`large-scale-text-editing` was checked the same way and **is not** a task-side defect: its
+verifier validates the allowed commands line by line, runs vim headlessly, generates
+`expected.csv` *after* the run and compares SHA-256. moca's five failing scripts end in a bare
+`wq` and its one pass ends in `:wq`; Claude's passes end in `:x`, OpenCode's in `:wq`. Same Ex
+command, different literal — so the cell tests instruction-literal copying, which makes it a
+legitimate (if pedantic) moca loss rather than a broken cell.
+
 So the set now has **two task-side cells** (`filter-js-from-html` and `configure-git-webserver`),
 and neither is an agent result. **Everything else that looked like a finding was noise:**
 
 | cell | moca across all samples | reading |
 |---|---|---|
 | `configure-git-webserver` | **0/6** | **task-side defect** — the verifier accepts a leftover artifact |
-| `large-scale-text-editing` | 1/6 | near-structural, `wq` vs `:wq` |
+| `large-scale-text-editing` | 1/6 | **real but narrow**: moca writes `wq` where the spec lists `:wq`; verifier is honest, the winners copy the colon |
 | `overfull-hbox` | 3/7 | coin flip; the 3× cell run passed 3/3 |
 | `sanitize-git-repo` | 3/6 | coin flip |
 | `dna-assembly` | 2/6 | coin flip **for all four agents** (OpenCode 0/2, Pi 1/2, Claude 1/2) |
