@@ -27,7 +27,13 @@ fi
 
 PYTHON="${PYTHON:-python3}"
 HARBOR="${HARBOR:-harbor}"
-HARBOR_VERSION="${HARBOR_VERSION:-0.24.0}"
+# Harbor is pinned: the adapters and the JobConfig renderer are written against this
+# exact release. Upgrades are deliberate (bump here + README + AGENTS.md, re-run the
+# ladder), never incidental.
+HARBOR_VERSION="${HARBOR_VERSION:-0.25.0}"
+# uv picks the newest interpreter by default, and a bare `uv tool install harbor` on a
+# host with Python 3.15 fails to build fastuuid and leaves NO harbor binary behind.
+HARBOR_PYTHON="${HARBOR_PYTHON:-3.13}"
 JOBS_DIR="${JOBS_DIR:-results/jobs}"
 HBPY="$(uv tool dir 2>/dev/null || true)/harbor/bin/python"
 
@@ -36,6 +42,25 @@ die() { echo "error: $*" >&2; exit 1; }
 need_harbor() {
   command -v "$HARBOR" >/dev/null 2>&1 ||
     die "harbor not found — run: ./scripts/bench.sh setup"
+}
+
+harbor_version() {
+  "$HARBOR" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
+}
+
+# Version drift has already poisoned one run (0.24 -> 0.25 landed mid-job) and a
+# mismatch is invisible until something imports a moved module. Hard-fail instead.
+require_harbor_pin() {
+  local have; have="$(harbor_version)"
+  [ -n "$have" ] || die "could not read the harbor version — run: ./scripts/bench.sh setup"
+  if [ "$have" != "$HARBOR_VERSION" ]; then
+    if [ "${HARBOR_ALLOW_VERSION_MISMATCH:-0}" = "1" ]; then
+      echo "WARN: harbor $have != pin $HARBOR_VERSION (allowed by HARBOR_ALLOW_VERSION_MISMATCH=1)" >&2
+      return 0
+    fi
+    die "harbor $have is installed but the pin is $HARBOR_VERSION — fix with: ./scripts/bench.sh setup --force
+     (or set HARBOR_ALLOW_VERSION_MISMATCH=1 for a one-off)"
+  fi
 }
 
 render() { # profile [out-path] -> prints config path
@@ -126,10 +151,17 @@ sys.exit(0 if sys.argv[1] in ids else 1)
 cmd_setup() {
   command -v uv >/dev/null 2>&1 ||
     die "uv is required — https://docs.astral.sh/uv/"
-  if command -v harbor >/dev/null 2>&1; then
-    echo "harbor $(harbor --version) already installed"
+  local want_force=0
+  [ "${1:-}" = "--force" ] && want_force=1
+  local have; have="$(command -v harbor >/dev/null 2>&1 && harbor_version)"
+  if [ "$have" = "$HARBOR_VERSION" ] && [ "$want_force" = "0" ]; then
+    echo "harbor $have already installed (pin)"
   else
-    uv tool install "harbor==$HARBOR_VERSION"
+    [ -n "$have" ] && echo "replacing harbor ${have:-none} with the pin $HARBOR_VERSION"
+    uv tool install --force --python "$HARBOR_PYTHON" "harbor==$HARBOR_VERSION" ||
+      die "harbor install failed — is python $HARBOR_PYTHON available (uv python list)?"
+    need_harbor
+    require_harbor_pin
   fi
   docker version --format 'docker server {{.Server.Version}}' >/dev/null 2>&1 ||
     die "docker daemon not reachable"
@@ -150,7 +182,12 @@ cmd_doctor() {
   echo
   echo "== harbor"
   if command -v harbor >/dev/null 2>&1; then
-    echo "harbor $(harbor --version) (configured pin: $HARBOR_VERSION)"
+    local have; have="$(harbor_version)"
+    if [ "$have" = "$HARBOR_VERSION" ]; then
+      echo "harbor $have (pin OK)"
+    else
+      echo "harbor ${have:-unknown} MISMATCH — pin is $HARBOR_VERSION; run ./scripts/bench.sh setup --force"
+    fi
   else
     echo "NOT installed — run: ./scripts/bench.sh setup"
   fi
@@ -193,6 +230,7 @@ cmd_doctor() {
 
 cmd_dry_run() { # [profile]
   need_harbor
+  require_harbor_pin
   agent_env_args
   local profile="${1:-subset}" cfg
   cfg="$(render "$profile")"
@@ -203,6 +241,7 @@ cmd_dry_run() { # [profile]
 
 cmd_run() { # profile [extra harbor args...]
   need_harbor
+  require_harbor_pin
   agent_env_args
   local profile="${1:-subset}"
   shift || true

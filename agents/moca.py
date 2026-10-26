@@ -38,7 +38,11 @@ import shlex
 from pydantic import Field
 
 from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_template
-from harbor.agents.model_connection import ModelConnectionSpec
+
+# Harbor 0.25 replaced ModelConnectionSpec's api_key_envs with an explicit
+# ProviderAccess; the credential is both read from and written to the same env
+# name because moca's config only ever references env:OPENCODE_API_KEY.
+from harbor.agents.agent_auth_resolution import ModelConnectionSpec, ProviderAccess
 from harbor.agents.options import InstalledAgentOptions
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
@@ -133,7 +137,12 @@ def run_command(instruction: str, flags: str, log_path: str, session_copy: str) 
 class Moca(BaseInstalledAgent):
     """Run the moca CLI inside the task environment."""
 
-    MODEL_CONNECTION = ModelConnectionSpec(api_key_envs=(_API_KEY_ENV,))
+    MODEL_CONNECTION = ModelConnectionSpec(
+        agent_provider_access=ProviderAccess(
+            api_key_candidate_names=[_API_KEY_ENV],
+        ),
+        api_key_destination_names={"default": _API_KEY_ENV},
+    )
 
     options_model = MocaOptions
     options: MocaOptions
