@@ -483,7 +483,7 @@ several rounds**:
 `regex-chess` (0/4 tests) and `adaptive-rejection-sampler` (0/9) the session shows three assistant
 turns of **39 905 / 61 124 / 61 291 characters of thinking with zero text**, moca's own nudge twice
 (`Your last reply was empty. Continue the task where you left off…`), then `moca: response
-truncated (token limit reached)` → exit 3, **43 292 output tokens spent, no file written**. Both
+truncated (token limit reached)` → exit 1 (`exitRuntime`; exit 3 is the step-budget code), **43 292 output tokens spent, no file written**. Both
 moca losses in this screen are this one mode on this one model. OpenCode, same model on the same
 cell, reached **8/9 tests** before its own timeout — so it is a harness-level difference, not model
 incapacity, and the cell was never really attempted.
@@ -492,6 +492,8 @@ Action for the next release, in order: (1) a bounded output/thinking budget in `
 runaway reasoning turn cannot consume a run; (2) after two empty replies, a constrained "answer now
 with a tool call" turn instead of ending the session. The verifier scored both cells 0.0, which is
 the correct bench number — the diagnosis is what changes the fix, not the score.
+
+**Fixed in moca PR #73** (`fix/truncated-turn-rescue`, v0.7.11 unreleased): a turn that stops at `length` with no tool call is retried once at a reduced effort with a nudge that forbids deliberating, and a second truncation ends the run with the cause named. Verified by unit tests and a live run of the built binary against a server that always truncates (two requests, exit 1).
 
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set

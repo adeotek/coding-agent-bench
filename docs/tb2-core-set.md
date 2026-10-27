@@ -145,7 +145,7 @@ What the numbers also say, and what the plan did not anticipate:
 - **`regex-chess` is a model-harness finding, not a chess-regex gap.** moca's session shows three
   assistant turns of 39 905 / 61 124 / 61 291 characters of *thinking* with **zero text**, twice
   followed by moca's own nudge (`Your last reply was empty…`), then `moca: response truncated
-  (token limit reached)` and exit 3 with **43 292 output tokens spent and no `/app/re.json`**. The
+  (token limit reached)` and exit **1** (`exitRuntime`; exit 3 is the step-budget code) with **43 292 output tokens spent and no `/app/re.json`**. The
   task was never attempted, so scoring it as "moca cannot write regex chess" would be wrong.
 - **Cost came in at 2.9× the estimate** ($1.86 vs $0.65): one opencode trial on
   `adaptive-rejection-sampler` burned **7.2 M tokens** on its way to a timeout, and the four
