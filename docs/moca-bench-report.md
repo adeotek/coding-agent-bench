@@ -472,6 +472,31 @@ literal-constraint class, `dna-assembly` as a capability gap, `configure-git-web
 defect) — every one was caught before a fix was written, which is the standard this report now
 holds itself to. **No moca code change is currently justified by the 24-task data.**
 
+### What the 21-cell screen adds (2026-10-27 — a screen, not a release round)
+
+A two-agent screen of the 21 audited-healthy cells no agent had ever run
+(`cab-subset-20261027-105352-727505`, moca v0.7.10 vs OpenCode v2.1.4, same model, 42 trials) put
+moca at **17/21** against OpenCode's 19/21 — and produced the first **actionable moca finding in
+several rounds**:
+
+**moca can spend its whole output budget on thinking and end the run without an answer.** On
+`regex-chess` (0/4 tests) and `adaptive-rejection-sampler` (0/9) the session shows three assistant
+turns of **39 905 / 61 124 / 61 291 characters of thinking with zero text**, moca's own nudge twice
+(`Your last reply was empty. Continue the task where you left off…`), then `moca: response
+truncated (token limit reached)` → exit 3, **43 292 output tokens spent, no file written**. Both
+moca losses in this screen are this one mode on this one model. OpenCode, same model on the same
+cell, reached **8/9 tests** before its own timeout — so it is a harness-level difference, not model
+incapacity, and the cell was never really attempted.
+
+Action for the next release, in order: (1) a bounded output/thinking budget in `config.jsonc`, so a
+runaway reasoning turn cannot consume a run; (2) after two empty replies, a constrained "answer now
+with a tool call" turn instead of ending the session. The verifier scored both cells 0.0, which is
+the correct bench number — the diagnosis is what changes the fix, not the score.
+
+The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
+pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set
+plan required — see `docs/tb2-core-set.md`.
+
 ## Update procedure
 
 After every run, in the same commit:

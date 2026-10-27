@@ -120,11 +120,61 @@ Either core round costs less than one 24-cell sweep today ($1.6 zen + $10.5 Clau
 CI narrow enough to call a two-cell change. That is the trade: **fewer cells, more repeats, on
 cells where the answer can differ.**
 
+
+## Phase 1 result — measured 2026-10-27, and the falsifier fired
+
+`cab-subset-20261027-105352-727505`: the 21 never-run healthy cells × 2 agents (moca v0.7.10,
+OpenCode v2.1.4) × 1 attempt, both on `opencode-go/deepseek-v4.1-flash`. 42 trials, 4 h 21 m,
+**$1.86** (the $0.65 estimate was wrong — see the cost note), zero no-verdict trials.
+
+| outcome | cells | detail |
+|---|---|---|
+| **both pass** | **17** of 21 (81 %) | saturated: these cells cannot separate these two agents at any k |
+| **discriminate** | **2** | `make-mips-interpreter` (moca 2/3 tests, opencode 3/3 — a clean loss) and `regex-chess` (moca 0/4, opencode 4/4 — but moca's loss is an output-budget truncation, not a failed attempt) |
+| **both fail** | **2** | `adaptive-rejection-sampler` (opencode reached **8/9 tests** before its timeout; moca never wrote a file) and `caffe-cifar-10` (both timed out, moca 3/6 vs opencode 1/6) |
+
+**Two discriminating cells, not eight. The falsifier written above fires**, and the honest reading is
+the one it named: Terminal-Bench 2.0's public set is **saturated** for these agents. Of 78 measurable
+cells, the bench now knows of **6 that can move**: the four already-documented discriminators
+(`large-scale-text-editing`, `overfull-hbox`, `sanitize-git-repo`, `dna-insert`) plus these two.
+Six cells is not the 12–16 this design needs, and at six cells one cell is 17 points — the core set
+as specified is **not constructible from this dataset**, and no amount of repetition changes that.
+
+What the numbers also say, and what the plan did not anticipate:
+
+- **`regex-chess` is a model-harness finding, not a chess-regex gap.** moca's session shows three
+  assistant turns of 39 905 / 61 124 / 61 291 characters of *thinking* with **zero text**, twice
+  followed by moca's own nudge (`Your last reply was empty…`), then `moca: response truncated
+  (token limit reached)` and exit 3 with **43 292 output tokens spent and no `/app/re.json`**. The
+  task was never attempted, so scoring it as "moca cannot write regex chess" would be wrong.
+- **Cost came in at 2.9× the estimate** ($1.86 vs $0.65): one opencode trial on
+  `adaptive-rejection-sampler` burned **7.2 M tokens** on its way to a timeout, and the four
+  `AgentTimeoutError` trials are the whole overrun. A screen's estimate bends to its hardest cell,
+  exactly like the disk estimate bent to its largest image.
+- **The exception count is not the failure count.** opencode recorded 9 exceptions across 21 trials
+  and still solved 19: 7 of those trials finished their work and the verifier scored 1.0 with an
+  exception recorded alongside (`AgentTimeoutError` after the deliverable was written,
+  `NonZeroAgentExitCodeError` after a clean final message). Read rewards, never exception totals.
+
+### Where that leaves the instrument
+
+1. **Use what exists**: a 6-cell core (the 4 known + `make-mips-interpreter` + `regex-chess` marked
+   as model-budget-bound), k=5, ≈$1.5 per two-agent round. It can detect a ≥2-cell change on a 6-cell
+   base — a 33-point swing — and nothing smaller. Say that in every report that quotes it.
+2. **Better: stop harvesting and start authoring.** A saturated public set is the ceiling of
+   *published* tasks, not of the agents. The signal has to come from cells written to be hard —
+   repo-scale edits, multi-file refactors with a real test suite, the same shape as the work these
+   agents are actually bought for.
+3. **Cheapest honest read on the existing set**: report **cost and turns per solve** on the 17
+   saturated cells instead of pass/fail. Both agents already pass them; they do not do it in the
+   same time or at the same price (`$0.0481` vs `$0.0549` per solve this round, 343 s vs 549 s
+   median per trial), and that difference is measurable on cells that cannot discriminate by score.
+
 ## What would change this plan
 
-- Phase 1 finds fewer than 8 discriminating cells → the honest conclusion is that Terminal-Bench
-  2.0's public set is saturated for these four agents, and the bench should move to a different
-  signal (cost/turns per solve on hard cells, or a private task set), not to more repeats.
+- ~~Phase 1 finds fewer than 8 discriminating cells~~ → **HAPPENED, 2026-10-27: 2 of 21.** Terminal-Bench
+  2.0's public set is saturated for these four agents; the bench moves to a different signal
+  (cost/turns per solve on hard cells, or an authored task set), not to more repeats.
 - A canary fails in the round → investigate the harness before reading any cell.
 - A cell's verdict flips between two rounds at k=3 → it does not belong in the core set; demote it
   and record why.
