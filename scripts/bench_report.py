@@ -962,12 +962,35 @@ def audit_classify(row_oracle: dict | None, row_nop: dict | None) -> str:
     return "unknown"
 
 
+def host_limits(path: str) -> dict[str, str]:
+    """Cells unmeasurable ON THIS HOST (no KVM, a vCPU missing instructions).
+
+    Deliberately a separate registry from docs/task-side.json: a task-side cell
+    mis-scores agents wherever it runs, while a host-limited cell is perfectly
+    measurable on hardware that satisfies it. Folding the two together would turn
+    this machine's limits into claims about the tasks, and would quietly shrink
+    the set for everyone.
+    """
+    p = Path(path)
+    if not p.is_file():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except json.JSONDecodeError as exc:
+        sys.exit(f"bench_report: {p} is not valid JSON: {exc}")
+    out = {}
+    for task, entry in (data.get("tasks") or {}).items():
+        out[task] = entry.get("why") if isinstance(entry, dict) else str(entry)
+    return out
+
 def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
     names = [a for a in args if not a.startswith("--")]
     as_json = "--json" in args
     out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
     if not names:
-        sys.exit("usage: bench_report.py audit <job>... [--json] [--out=path]")
+        sys.exit("usage: bench_report.py audit <job>... [--json] [--out=path] [--host-limits=path]")
+    limits_path = next((a.split("=", 1)[1] for a in args if a.startswith("--host-limits=")), str(REPO / "docs" / "host-limits.json"))
+    limits = host_limits(limits_path)
     jobs = [load_job(jobs_dir, n) for n in names]
     tasks = audit_rows(jobs)
     findings = []
@@ -975,6 +998,10 @@ def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
     for task in sorted(tasks):
         rows = tasks[task]
         cls = audit_classify(rows.get("oracle"), rows.get("nop"))
+        # A cell this host cannot run is not a broken task: relabel it, keep the
+        # reason, and never let it inflate the defect count.
+        if cls == "broken-task" and task in limits:
+            cls = "host-limited"
         counts[cls] = counts.get(cls, 0) + 1
         if cls != "healthy":
             findings.append(
@@ -983,6 +1010,7 @@ def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
                     "class": cls,
                     "oracle": verdict(rows["oracle"]) if "oracle" in rows else "-",
                     "nop": verdict(rows["nop"]) if "nop" in rows else "-",
+                    "host_limit": limits.get(task),
                     "oracle_exception": (rows.get("oracle") or {}).get("exception"),
                     "nop_exception": (rows.get("nop") or {}).get("exception"),
                 }
@@ -1004,13 +1032,14 @@ def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
     print("|---|---|---|")
     meanings = {
         "healthy": "oracle passes, nop fails — a real task",
+        "host-limited": "oracle fails for this host's own limits (no KVM, missing CPU instructions) — not a task defect",
         "broken-task": "oracle fails — unsolvable as specified, or its reference solution is",
         "vacuous": "nop passes — the verifier is satisfiable by doing nothing",
         "both-broken": "oracle fails AND nop passes — the worst case",
         "no-verdict": "a trial produced no verdict — infrastructure, inspect the exception",
         "unknown": "only one side ran — the audit is incomplete",
     }
-    for cls in ("healthy", "broken-task", "vacuous", "both-broken", "no-verdict", "unknown"):
+    for cls in ("healthy", "host-limited", "broken-task", "vacuous", "both-broken", "no-verdict", "unknown"):
         if counts.get(cls):
             print(f"| {cls} | {counts[cls]} | {meanings[cls]} |")
     print()

@@ -112,6 +112,24 @@ def main() -> int:
         check("audit flags no-verdict with its exception", "`flaky`" in out and "VerifierTimeoutError" in out, out[:800])
         check("audit flags an incomplete task", "`half`" in out and "unknown" in out, out[:800])
 
+        # --- host-limited is a different claim than broken-task -------------
+        limits = root / "host-limits.json"
+        limits.write_text(json.dumps({"tasks": {"unsolvable": {"why": "no /dev/kvm on this host"}}}))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            bench.cmd_audit(root, ["cab-audit-1", f"--host-limits={limits}"])
+        out2 = buf.getvalue()
+        check("a host-limited cell is relabelled", "`unsolvable` | host-limited" in out2, out2[:700])
+        check("host-limited does not inflate the defect count", "| broken-task |" not in out2, out2[:700])
+        check("host_limits() reads the registry", bench.host_limits(str(limits)) == {"unsolvable": "no /dev/kvm on this host"}, str(bench.host_limits(str(limits))))
+        check("a missing registry is empty, not fatal", bench.host_limits(str(root / "nope.json")) == {})
+        (root / "bad.json").write_text("{not json")
+        try:
+            bench.host_limits(str(root / "bad.json")); ok = False
+        except SystemExit:
+            ok = True
+        check("an invalid registry fails loudly", ok)
+
         jpath = root / "audit.json"
         with contextlib.redirect_stdout(io.StringIO()):
             bench.cmd_audit(root, ["cab-audit-1", f"--out={jpath}"])

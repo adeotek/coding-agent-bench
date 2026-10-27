@@ -367,6 +367,35 @@ same task in 45 s the week before. `filter-js` is the other loss.
    assertions cost every agent the same points; they belong in the task audit, not in a
    ranking.
 
+## Task audit — the cells themselves (2026-10-26/27, zero tokens)
+
+Every cell in `docs/tb2-all.txt` was audited with Harbor's own agents before planning anything at
+scale: `oracle` runs the reference solution (must pass), `nop` does nothing (must fail).
+
+| verdict | cells | what it means for a scoreboard |
+|---|---|---|
+| healthy | **78** | a pass means work was done |
+| task-side defect | **8** | a failure here is the task's fault, not the agent's |
+| host-limited | **3** | not measurable on this machine |
+| vacuous / both-broken / no verdict | 0 | no verifier here is satisfiable by inaction |
+
+The 8 defects (each re-verified at two attempts) are **bit-rot in reference solutions**, not bad
+prose: `build-cython-ext` (verifier clones upstream and asserts *its* suite — non-hermetic, and it
+rotted from 8/8 agent passes to oracle 0/3 within a day), `build-pmars` (pinned `dpkg-dev` gone),
+`make-doom-for-mips` (missing `clang`), `mcmc-sampling-stan` + `rstan-to-pystan` (R packages never
+install), `protein-assembly` + `tune-mjcf` (no output), `train-fasttext` (knife-edge
+`accuracy > 0.62` against a 0.619725 reference — it passes or fails on training noise).
+
+The 3 host-limited cells are environmental, not task-side: this box is a QEMU guest with a generic
+vCPU and no `/dev/kvm`, so `mteb-leaderboard` dies on `Illegal instruction` and the two `qemu-*`
+cells cannot start a VM. `mteb-retrieve`, the same size and family, is healthy — so it is the
+image, not the family.
+
+Two consequences for every table in this report: a "full" run measured here tops out at **86
+cells**, and **8 of them cannot produce an agent signal at all** — the honest denominator is
+**78**. Nothing above changes: none of the four agents' measured cells is among the 8 or the 3.
+Evidence: `docs/task-defects.md`; reproduce with `make audit`.
+
 ## What would make this report current
 
 1. **Repeat the 24-task sweep unchanged.** It is the current baseline and it was measured once.
