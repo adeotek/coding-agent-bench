@@ -222,6 +222,8 @@ python3 scripts/bench_report.py credit <job>           # partial credit from ver
 python3 scripts/bench_report.py export <job>           # summary.json: trials + manifest + aggregates
 python3 scripts/bench_report.py report <job> --out=docs/bench-latest.md   # generated tables
 python3 scripts/bench_report.py diff <job> <task>      # why one cell went differently
+make audit                                            # oracle/nop: is every task a task?
+python3 scripts/bench_report.py audit $(cat results/audit/jobs/*.job | sort -u)  # the findings
 
 `compare` is the only command that makes a claim. Every agent runs the same
 cells, so it pairs them **by task**: the delta is the mean per-task pass-rate
@@ -232,6 +234,45 @@ share of cells that change verdict between identical runs. A delta whose CI
 includes zero is not a finding, whatever the point estimate says: at 24 tasks a
 single cell is worth 4 points, so only a large, consistent difference clears the bar.
 ```
+
+`make audit` runs Harbor's own `oracle` and `nop` agents over every tracked task
+(`docs/tb2-all.txt`, 89 cells): oracle must pass — the reference solution works as
+specified — and nop must fail, because doing nothing cannot satisfy the verifier.
+Anything else is a **task-side finding**, and it costs zero tokens. The audit runs
+in batches and drops each batch's images afterwards (Terminal-Bench images average
+0.65 GB; the full set is ~58 GB and this host has ~22 GB free), keeping the 24-task
+comparison set warm. `bench_report.py audit` classifies the result as
+healthy / host-limited / broken-task / vacuous / both-broken / no-verdict — and `no-verdict` is
+never folded into either side, since an infrastructure failure is not a task defect, while
+host-limited (no `/dev/kvm`, a vCPU missing instructions) is a fact about the machine, not about
+the task. The 2026-10 sweep: **78 healthy, 8 broken, 3 host-limited** — every cell and its
+evidence in `docs/task-defects.md`.
+
+### What may be measured: the run list
+
+The audit is worthless if its verdicts don't change what gets run, so the lists are
+**derived from it** — never hand-written:
+
+```bash
+make runlist        # → docs/tb2-measurable.txt (78 cells) + docs/tb2-watch.txt (11)
+make audit-watch    # re-audit the broken cells, zero tokens; fixed ones return automatically
+```
+
+- `docs/tb2-measurable.txt` — cells whose own oracle passes **here**. This is the list a
+  measured run should use (`TASK_FILE=docs/tb2-measurable.txt ./scripts/bench.sh run full`).
+- `docs/tb2-watch.txt` — the cells that are not healthy, each with its class
+  (`broken-task`, `host-limited`). Re-audit, never score.
+
+`render_config.py` enforces the second half: a non-audit profile **drops** any cell on the
+watch list and says so, by name, on stderr. A broken cell has no agent signal in either
+direction — a loss is the task's fault and a win is noise — so scoring one is how you publish
+a regression that never happened. `ALLOW_DEFECTIVE=1` keeps them (for investigating a cell);
+the `audit` profile is exempt, since finding them is its job. The run lists are derived from
+the job store, so a cell that gets repaired upstream returns the moment its oracle passes —
+`make audit-watch` is that gate.
+
+Nothing is hidden in the numbers either: reports print coverage (`78/89`), and
+`docs/task-defects.md` lists every excluded cell with its evidence.
 
 `credit` reads `verifier/ctrf.json` (already written by every trial) and scores
 tests passed / tests run, skipping `skipped`. On the 24-task subset that is 82

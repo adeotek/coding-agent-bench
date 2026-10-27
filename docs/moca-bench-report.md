@@ -406,11 +406,44 @@ Claude Code is 97.6 %, OpenCode 93.9 %, Pi 92.7 %: a 4.9-point spread on credit 
 binary. That is the strongest evidence yet that moca's remaining losses are mostly "stopped one
 test early" rather than "cannot do the task".
 
-**Net: the 24-task set currently contains no reproducible moca defect.** moca's 37/48 sits 2–3
+**The audit found no moca defect either** — of the 8 unsolvable cells, none was ever a moca
+loss in a round; of the 3 host-limited ones, none was run here at all. **Net: the 24-task set currently contains no reproducible moca defect.** moca's 37/48 sits 2–3
 cells behind Pi (40/48) and OpenCode (39/48) and 7 behind Claude Code (44/48), with overlapping
 confidence intervals at 48 trials, and at least one of Claude's cells is a gamed pass. The ranking
 reproduced in direction, not in precision — and pointing a release at it needs a sharper
 instrument, not a code change.
+
+## Task audit — 89 cells, 2026-10-26/27 (zero tokens)
+
+Before planning anything at scale, the cells themselves were audited: Harbor's `oracle` runs each
+reference solution (must pass), `nop` does nothing (must fail). 89 cells, 15 jobs, no model tokens.
+
+| verdict | cells |
+|---|---|
+| healthy (oracle P, nop F) | **78** |
+| task-side defect | **8** |
+| host-limited (this machine) | **3** |
+| vacuous / both-broken / no verdict | 0 |
+
+**Eight cells cannot be solved as shipped** — none of them is a moca finding, and each was
+re-verified at two attempts before being called a defect: `build-cython-ext` (verifier clones
+pyknotid from GitHub and asserts the upstream suite — oracle 0/3, while all four agents passed the
+same cell 8/8 a day earlier), `build-pmars` (pins `dpkg-dev=1.22.21`, no longer in the repos),
+`make-doom-for-mips` (calls `clang`, absent), `mcmc-sampling-stan` / `rstan-to-pystan` (R package
+never installed), `protein-assembly` and `tune-mjcf` (no output produced), `train-fasttext`
+(asserts `accuracy > 0.62`; the reference measures **0.619725** — passes or fails on training
+noise).
+
+**Three cells are unmeasurable on this host, not broken:** this machine is a QEMU guest with a
+generic vCPU and no `/dev/kvm`, so `mteb-leaderboard` dies with `Illegal instruction` and both
+`qemu-*` cells need hardware virtualization. Its twin `mteb-retrieve` is healthy here, so the
+failure is per-image.
+
+Consequences, stated plainly: the ceiling of a "full 89" run **on this machine** is 86 cells, and
+8 of them say nothing about the agent that fails them — the honest comparison set is **78**. And
+because `build-cython-ext` rotted from "all agents pass" to "oracle fails" **inside one day**,
+the audit is now a gate to re-run before every round, not a one-off. Full evidence:
+`docs/task-defects.md`.
 
 ## Summary — where v0.7.10 stands, against every earlier release
 

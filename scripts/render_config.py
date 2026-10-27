@@ -37,7 +37,11 @@ def env_int(name: str, default: int) -> int:
         sys.exit(f"render_config: {name}={raw!r} is not an integer")
 
 
-def agents(_profile: str) -> list[dict]:
+def agents(profile: str) -> list[dict]:
+    # The audit profile is Harbor's own oracle/nop pair: no model, no key, no tokens.
+    # oracle must solve every task as specified; nop must fail every verifier.
+    if profile == "audit":
+        return [{"name": "oracle"}, {"name": "nop"}]
     zen = env("ZEN_MODEL", "opencode-go/deepseek-v4.1-flash")
     claude = env("CLAUDE_MODEL", "anthropic/claude-sonnet-5")
     entries: list[tuple[str, dict]] = [
@@ -112,14 +116,77 @@ def build(profile: str) -> dict:
         "name": env("TB_DATASET", "terminal-bench"),
         "version": env("TB_VERSION", "2.0"),
     }
-    if profile == "subset":
+    task_file = env("TASK_FILE")
+    if task_file:
+        path = Path(task_file)
+        if not path.is_absolute():
+            path = REPO / path
+        if not path.is_file():
+            sys.exit(f"render_config: TASK_FILE={task_file} does not exist")
+        names = [
+            line.split()[0]
+            for line in path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if not names:
+            sys.exit(f"render_config: TASK_FILE={task_file} lists no tasks")
+        dataset["task_names"] = drop_defective(names, profile)
+    elif profile == "subset":
         names = env("TASK_NAMES")
         if names:
-            dataset["task_names"] = [s.strip() for s in names.split(",") if s.strip()]
+            dataset["task_names"] = drop_defective([s.strip() for s in names.split(",") if s.strip()], profile)
         else:
             dataset["n_tasks"] = env_int("N_TASKS", 20)
     cfg["datasets"] = [dataset]
     return cfg
+
+
+WATCH_LIST = "docs/tb2-watch.txt"
+
+
+def defective_cells() -> dict[str, str]:
+    """Cells the audit says cannot produce an agent signal (docs/tb2-watch.txt).
+
+    Derived from oracle/nop verdicts, not maintained by hand. Missing file = no
+    opinion (a fresh clone before the first audit), never a silent allow-list.
+    """
+    path = REPO / WATCH_LIST
+    if not path.is_file():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        out[parts[0]] = parts[1] if len(parts) > 1 else "not-healthy"
+    return out
+
+
+def drop_defective(names: list[str], profile: str) -> list[str]:
+    """Keep agent money off cells whose own reference solution fails.
+
+    A broken cell cannot yield a pass-or-fail signal: a loss is the task's fault and
+    a win is noise. Scoring one fabricates a regression, so they are dropped — loudly,
+    and by name, so it is visible in the run log and in the rendered config. The audit
+    profile is exempt: finding these cells is its whole job.
+    """
+    if profile == "audit" or os.environ.get("ALLOW_DEFECTIVE") == "1":
+        return names
+    bad = {n: defective_cells()[n] for n in names if n in defective_cells()}
+    if not bad:
+        return names
+    kept = [n for n in names if n not in bad]
+    detail = ", ".join(f"{n} ({c})" for n, c in sorted(bad.items()))
+    print(f"render_config: dropping {len(bad)} non-measurable cell(s): {detail}", file=sys.stderr)
+    print(
+        f"render_config: they are on {WATCH_LIST} (docs/task-defects.md explains each) and cannot "
+        "produce an agent signal; ALLOW_DEFECTIVE=1 keeps them anyway",
+        file=sys.stderr,
+    )
+    if not kept:
+        sys.exit("render_config: every requested cell is non-measurable — nothing to run")
+    return kept
 
 
 def main() -> None:
@@ -132,8 +199,8 @@ def main() -> None:
         out_arg = argv[i + 1]
         del argv[i : i + 2]
     profile = argv[0] if argv else "subset"
-    if profile not in ("smoke", "subset", "full"):
-        sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full)")
+    if profile not in ("smoke", "subset", "full", "audit"):
+        sys.exit(f"render_config: unknown profile {profile!r} (smoke|subset|full|audit)")
     cfg = build(profile)
     out = Path(out_arg) if out_arg else REPO / "results" / f"effective-{profile}.json"
     out.parent.mkdir(parents=True, exist_ok=True)

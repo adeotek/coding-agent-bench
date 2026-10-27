@@ -1,0 +1,24 @@
+{
+  "_comment": "Cells that cannot be measured ON THIS HOST for environmental reasons — no hardware virtualization, a vCPU without the instruction set an image's binaries need, or a kernel feature a task requires. This is NOT the same claim as a broken task: the task may be perfectly solvable on hardware that satisfies it, so these cells are excluded from 'broken' counts and any rate computed from this machine has to say it was measured without them. Never put an agent's failure here: a cell that is merely hard belongs in the reports as a loss.",
+  "host": {
+    "observed": "QEMU Virtual CPU version 2.5+ (guest, no /dev/kvm, no AVX/AVX-512 advertised)",
+    "since": "2026-10-27"
+  },
+  "tasks": {
+    "mteb-leaderboard": {
+      "why": "the reference solution dies with `Illegal instruction (core dumped)` running `python leaderboard.py`: the image's wheels execute instructions this vCPU does not expose",
+      "evidence": "results/jobs/cab-audit-20261027-014226-145188/mteb-leaderboard__* (oracle 0/1, agent/oracle.txt); its twin mteb-retrieve is healthy here, so the failure is per-image, not per-family",
+      "since": "2026-10-27"
+    },
+    "qemu-startup": {
+      "why": "no /dev/kvm in this guest, so no hardware virtualization for the VM the task starts",
+      "evidence": "results/jobs/cab-audit-20261027-013205-131040/qemu-startup__* (oracle 0/1); host has no /dev/kvm and no vmx/svm flag",
+      "since": "2026-10-27"
+    },
+    "qemu-alpine-ssh": {
+      "why": "same: the task boots a VM and this guest cannot nest virtualization",
+      "evidence": "results/jobs/cab-audit-20261027-013205-131040/qemu-alpine-ssh__* (oracle 0/1)",
+      "since": "2026-10-27"
+    }
+  }
+}

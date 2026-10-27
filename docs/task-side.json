@@ -10,6 +10,11 @@
       "why": "byte-exact expectation plus verifier timeouts: 0 passes in 25 attempts across the 12-task hold study, two attempts died as VerifierTimeoutError",
       "evidence": "docs/moca-bench-report.md (screening + hold study rows)",
       "since": "2026-10-25"
+    },
+    "build-cython-ext": {
+      "why": "verifier clones pyknotid 0.5.3 from GitHub at verification time and asserts ITS upstream test suite passes (pip-installing pytest into the container); one upstream test (\u2026reconstructed_space_curve) now fails, so the reference solution cannot pass \u2014 oracle 0/3 while all four agents passed the same cell 8/8 on 2026-10-25/26",
+      "evidence": "audit jobs cab-audit-20261026-232802-2949383 + cab-audit-20261026-233417-3014135 (3 attempts); tests/test_outputs.py::test_pyknotid_repository_tests",
+      "since": "2026-10-26"
     }
   }
 }
