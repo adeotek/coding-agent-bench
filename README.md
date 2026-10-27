@@ -187,6 +187,42 @@ Anything the wrapper doesn't expose can be passed straight through to Harbor:
 - **Your own tasks/datasets**: Harbor supports local task dirs, Git-task repos, and custom registries — point a `tasks:`/`datasets:` entry at them (schema: `harbor job schema`; docs: https://docs.harborframework.com/tasks/overview).
 - **New profile** (e.g. a curated 5-task set): add a branch in `build()` in `scripts/render_config.py` or just use `TASK_NAMES`.
 
+## Sharding a run (why, and when)
+
+Harbor keeps every image a job pulls for that job's lifetime. Uncompressed, the 89
+Terminal-Bench 2.0 images are **~145 GB** (Docker Hub compressed sizes × the 2.6–4.0×
+decompression ratio measured on images already pulled here), plus ~15 GB of container
+scratch for four concurrent agents. A 96 GB host cannot run that as one job.
+
+So a set can be measured in slices:
+
+```bash
+TASK_FILE=docs/tb2-all.txt make sharded PROFILE=full SHARDS=5   # s1of5 … s5of5, pruned between
+```
+
+Each shard is an ordinary job (`cab-<profile>-s<k>of<n>-<stamp>-<pid>`) with its own
+manifest, so it is resumable: a shard that dies is re-run alone, and nothing already
+measured is lost. Stitching is a *reading* operation — pass every shard job to
+`report`/`compare` and the tasks are pooled:
+
+```bash
+python3 scripts/bench_report.py report $(ls -d results/jobs/cab-full-s*of5-* | xargs -n1 basename)
+```
+
+Three invariants keep that honest, and the test suite pins all three:
+
+- **disjoint, ordered, covering** — `SHARD=k/n` takes a contiguous ceil-sized block, so
+  the shards' union is exactly the parent list and no task is measured twice;
+- **the parent fingerprint travels with the shard** — a shard's own task list cannot
+  prove two jobs measured the same cells, so `manifest.shard.parent_task_list_sha256`
+  records the whole list, and `comparable()` compares that;
+- **the report says what it covers** — a stitched report prints `tasks covered: 71/89
+  (2 uncovered)` and warns when shards come from different parents. A partial set never
+  reads as a whole one.
+
+`SHARD` needs an explicit list (`TASK_FILE` or `TASK_NAMES`); slicing an `n_tasks`
+dataset would mean guessing which tasks Harbor picks, so the render refuses instead.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -222,6 +258,10 @@ python3 scripts/bench_report.py credit <job>           # partial credit from ver
 python3 scripts/bench_report.py export <job>           # summary.json: trials + manifest + aggregates
 python3 scripts/bench_report.py report <job> --out=docs/bench-latest.md   # generated tables
 python3 scripts/bench_report.py diff <job> <task>      # why one cell went differently
+make audit                                            # oracle/nop: is every task a task?
+make sharded PROFILE=subset SHARDS=4                  # same set, N sequential jobs, images pruned between
+SHARD=2/5 TASK_FILE=docs/tb2-all.txt make dry-run ARGS=full   # what one shard would run
+python3 scripts/bench_report.py audit $(cat results/audit/jobs/*.job | sort -u)  # the findings
 
 `compare` is the only command that makes a claim. Every agent runs the same
 cells, so it pairs them **by task**: the delta is the mean per-task pass-rate
@@ -232,6 +272,45 @@ share of cells that change verdict between identical runs. A delta whose CI
 includes zero is not a finding, whatever the point estimate says: at 24 tasks a
 single cell is worth 4 points, so only a large, consistent difference clears the bar.
 ```
+
+`make audit` runs Harbor's own `oracle` and `nop` agents over every tracked task
+(`docs/tb2-all.txt`, 89 cells): oracle must pass — the reference solution works as
+specified — and nop must fail, because doing nothing cannot satisfy the verifier.
+Anything else is a **task-side finding**, and it costs zero tokens. The audit runs
+in batches and drops each batch's images afterwards (Terminal-Bench images average
+0.65 GB; the full set is ~58 GB and this host has ~22 GB free), keeping the 24-task
+comparison set warm. `bench_report.py audit` classifies the result as
+healthy / host-limited / broken-task / vacuous / both-broken / no-verdict — and `no-verdict` is
+never folded into either side, since an infrastructure failure is not a task defect, while
+host-limited (no `/dev/kvm`, a vCPU missing instructions) is a fact about the machine, not about
+the task. The 2026-10 sweep: **78 healthy, 8 broken, 3 host-limited** — every cell and its
+evidence in `docs/task-defects.md`.
+
+### What may be measured: the run list
+
+The audit is worthless if its verdicts don't change what gets run, so the lists are
+**derived from it** — never hand-written:
+
+```bash
+make runlist        # → docs/tb2-measurable.txt (78 cells) + docs/tb2-watch.txt (11)
+make audit-watch    # re-audit the broken cells, zero tokens; fixed ones return automatically
+```
+
+- `docs/tb2-measurable.txt` — cells whose own oracle passes **here**. This is the list a
+  measured run should use (`TASK_FILE=docs/tb2-measurable.txt ./scripts/bench.sh run full`).
+- `docs/tb2-watch.txt` — the cells that are not healthy, each with its class
+  (`broken-task`, `host-limited`). Re-audit, never score.
+
+`render_config.py` enforces the second half: a non-audit profile **drops** any cell on the
+watch list and says so, by name, on stderr. A broken cell has no agent signal in either
+direction — a loss is the task's fault and a win is noise — so scoring one is how you publish
+a regression that never happened. `ALLOW_DEFECTIVE=1` keeps them (for investigating a cell);
+the `audit` profile is exempt, since finding them is its job. The run lists are derived from
+the job store, so a cell that gets repaired upstream returns the moment its oracle passes —
+`make audit-watch` is that gate.
+
+Nothing is hidden in the numbers either: reports print coverage (`78/89`), and
+`docs/task-defects.md` lists every excluded cell with its evidence.
 
 `credit` reads `verifier/ctrf.json` (already written by every trial) and scores
 tests passed / tests run, skipping `skipped`. On the 24-task subset that is 82
