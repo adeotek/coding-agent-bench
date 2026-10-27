@@ -1,0 +1,13 @@
+# 11 cells that are NOT healthy — re-audit, never score
+# derived by `make runlist` — do not edit.
+build-cython-ext	broken-task
+build-pmars	broken-task
+make-doom-for-mips	broken-task
+mcmc-sampling-stan	broken-task
+mteb-leaderboard	host-limited
+protein-assembly	broken-task
+qemu-alpine-ssh	host-limited
+qemu-startup	host-limited
+rstan-to-pystan	broken-task
+train-fasttext	broken-task
+tune-mjcf	broken-task

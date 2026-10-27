@@ -1065,6 +1065,58 @@ def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
         path.write_text(json.dumps(payload, indent=1) + "\n")
         print(f"audit: {path}")
 
+def cmd_runlist(jobs_dir: Path, args: list[str]) -> None:
+    """Turn audit verdicts into a run list: spend money only where a pass means something.
+
+    `docs/tb2-watch.txt` is the complement, and the two files are derived, never
+    edited by hand — a cell leaves the watch list the moment its oracle passes
+    again, which is the only honest way to re-admit one.
+    """
+    names = [a for a in args if not a.startswith("--")]
+    watch = "--watch" in args
+    as_json = "--json" in args
+    out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
+    limits_path = next((a.split("=", 1)[1] for a in args if a.startswith("--host-limits=")), str(REPO / "docs" / "host-limits.json"))
+    limits = host_limits(limits_path)
+    tasks = audit_rows([load_job(jobs_dir, n) for n in names])
+
+    measurable: list[str] = []
+    watched: dict[str, str] = {}
+    for task in sorted(tasks):
+        rows = tasks[task]
+        cls = audit_classify(rows.get("oracle"), rows.get("nop"))
+        if cls == "broken-task" and task in limits:
+            cls = "host-limited"
+        if cls == "healthy":
+            measurable.append(task)
+        else:
+            watched[task] = cls
+
+    if as_json and not out_path:
+        print(json.dumps({"measurable": measurable, "watch": watched, "tasks": len(tasks)}, indent=1))
+        return
+
+    header = (
+        f"# {len(measurable)} cells whose oracle passes here "
+        f"({len(tasks)} audited: {sum(1 for c in watched.values() if c == 'broken-task')} broken, "
+        f"{sum(1 for c in watched.values() if c == 'host-limited')} host-limited, "
+        f"{sum(1 for c in watched.values() if c not in {'broken-task', 'host-limited'})} other)\n"
+        "# derived by `make runlist` from the oracle/nop audit — do not edit;\n"
+        "# a cell returns here only when its own oracle passes again.\n"
+    ) if not watch else (
+        f"# {len(watched)} cells that are NOT healthy — re-audit, never score\n"
+        "# derived by `make runlist` — do not edit.\n"
+    )
+    body = "\n".join(measurable if not watch else [f"{t}\t{c}" for t, c in sorted(watched.items())])
+    text = (header + body + "\n") if body else header
+    if out_path:
+        path = Path(out_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        print(f"runlist: {path} — {len(measurable)} measurable, {len(watched)} watched")
+    else:
+        print(text, end="")
+
 def cmd_json(jobs_dir: Path, args: list[str]) -> None:
     print(json.dumps([load_job(jobs_dir, name) for name in args], indent=2))
 
@@ -1072,7 +1124,7 @@ def cmd_json(jobs_dir: Path, args: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--jobs-dir", default=str(REPO / "results" / "jobs"))
-    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "audit", "json"))
+    parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "audit", "runlist", "json"))
     parser.add_argument("jobs", nargs="*", help="job names (all commands except `runs`)")
     parser.add_argument("--json", action="store_true", help="compare/audit: machine-readable output")
     parser.add_argument("--out", help="report: write to this path instead of stdout")
@@ -1080,6 +1132,7 @@ def main() -> int:
     parser.add_argument("--iters", type=int, default=10000, help="compare: bootstrap iterations (default 10000)")
     parser.add_argument("--seed", type=int, default=0, help="compare: bootstrap seed (default 0)")
     parser.add_argument("--host-limits", help="audit: registry of cells this host cannot measure (default docs/host-limits.json)")
+    parser.add_argument("--watch", action="store_true", help="runlist: emit the unhealthy cells instead of the measurable ones")
     opts = parser.parse_args()
     jobs_dir = Path(opts.jobs_dir)
     if not jobs_dir.is_dir():
@@ -1098,13 +1151,16 @@ def main() -> int:
             passthrough.append("--json")
         if opts.host_limits:
             passthrough.append(f"--host-limits={opts.host_limits}")
+        if opts.watch:
+            passthrough.append("--watch")
         if opts.command == "compare":
             extra = [f"--iters={opts.iters}", f"--seed={opts.seed}"] + (["--json"] if opts.json else [])
             cmd_compare(jobs_dir, opts.jobs + extra)
         elif opts.command == "report":
             cmd_report(jobs_dir, opts.jobs + passthrough)
-        elif opts.command in {"credit", "export", "diff", "audit"}:
-            {"credit": cmd_credit, "export": cmd_export, "diff": cmd_diff, "audit": cmd_audit}[opts.command](
+        elif opts.command in {"credit", "export", "diff", "audit", "runlist"}:
+            {"credit": cmd_credit, "export": cmd_export, "diff": cmd_diff,
+             "audit": cmd_audit, "runlist": cmd_runlist}[opts.command](
                 jobs_dir, opts.jobs + passthrough
             )
         else:

@@ -130,15 +130,63 @@ def build(profile: str) -> dict:
         ]
         if not names:
             sys.exit(f"render_config: TASK_FILE={task_file} lists no tasks")
-        dataset["task_names"] = names
+        dataset["task_names"] = drop_defective(names, profile)
     elif profile == "subset":
         names = env("TASK_NAMES")
         if names:
-            dataset["task_names"] = [s.strip() for s in names.split(",") if s.strip()]
+            dataset["task_names"] = drop_defective([s.strip() for s in names.split(",") if s.strip()], profile)
         else:
             dataset["n_tasks"] = env_int("N_TASKS", 20)
     cfg["datasets"] = [dataset]
     return cfg
+
+
+WATCH_LIST = "docs/tb2-watch.txt"
+
+
+def defective_cells() -> dict[str, str]:
+    """Cells the audit says cannot produce an agent signal (docs/tb2-watch.txt).
+
+    Derived from oracle/nop verdicts, not maintained by hand. Missing file = no
+    opinion (a fresh clone before the first audit), never a silent allow-list.
+    """
+    path = REPO / WATCH_LIST
+    if not path.is_file():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        out[parts[0]] = parts[1] if len(parts) > 1 else "not-healthy"
+    return out
+
+
+def drop_defective(names: list[str], profile: str) -> list[str]:
+    """Keep agent money off cells whose own reference solution fails.
+
+    A broken cell cannot yield a pass-or-fail signal: a loss is the task's fault and
+    a win is noise. Scoring one fabricates a regression, so they are dropped — loudly,
+    and by name, so it is visible in the run log and in the rendered config. The audit
+    profile is exempt: finding these cells is its whole job.
+    """
+    if profile == "audit" or os.environ.get("ALLOW_DEFECTIVE") == "1":
+        return names
+    bad = {n: defective_cells()[n] for n in names if n in defective_cells()}
+    if not bad:
+        return names
+    kept = [n for n in names if n not in bad]
+    detail = ", ".join(f"{n} ({c})" for n, c in sorted(bad.items()))
+    print(f"render_config: dropping {len(bad)} non-measurable cell(s): {detail}", file=sys.stderr)
+    print(
+        f"render_config: they are on {WATCH_LIST} (docs/task-defects.md explains each) and cannot "
+        "produce an agent signal; ALLOW_DEFECTIVE=1 keeps them anyway",
+        file=sys.stderr,
+    )
+    if not kept:
+        sys.exit("render_config: every requested cell is non-measurable — nothing to run")
+    return kept
 
 
 def main() -> None:
