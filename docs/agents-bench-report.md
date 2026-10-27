@@ -396,6 +396,14 @@ cells**, and **8 of them cannot produce an agent signal at all** — the honest 
 **78**. Nothing above changes: none of the four agents' measured cells is among the 8 or the 3.
 Evidence: `docs/task-defects.md`; reproduce with `make audit`.
 
+One more measured fact about this dataset, from the 2026-10-27 two-agent screen of the 21
+audited-but-never-run cells (`cab-subset-20261027-105352-727505`, 42 trials): **17 of 21 were passed
+by both agents**, 2 discriminated (`make-mips-interpreter` cleanly; `regex-chess` only because moca
+burned its output budget on thinking and never wrote the file), and 2 failed for both by timeout or
+truncation. The public set is saturated for this class of agent — which is why this report ranks
+agents on cost, turns and dollars-per-solve as well as on passes: on cells nobody fails, the only
+signal left is what the pass costs.
+
 ## What would make this report current
 
 1. **Repeat the 24-task sweep unchanged.** It is the current baseline and it was measured once.
