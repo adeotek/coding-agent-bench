@@ -983,16 +983,8 @@ def host_limits(path: str) -> dict[str, str]:
         out[task] = entry.get("why") if isinstance(entry, dict) else str(entry)
     return out
 
-def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
-    names = [a for a in args if not a.startswith("--")]
-    as_json = "--json" in args
-    out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
-    if not names:
-        sys.exit("usage: bench_report.py audit <job>... [--json] [--out=path] [--host-limits=path]")
-    limits_path = next((a.split("=", 1)[1] for a in args if a.startswith("--host-limits=")), str(REPO / "docs" / "host-limits.json"))
-    limits = host_limits(limits_path)
-    jobs = [load_job(jobs_dir, n) for n in names]
-    tasks = audit_rows(jobs)
+def audit_payload(tasks: dict, names: list[str], limits: dict[str, str]) -> dict:
+    """The audit as data — shared by `--json` and `--out=` so the two can never disagree."""
     findings = []
     counts: dict[str, int] = {}
     for task in sorted(tasks):
@@ -1015,17 +1007,32 @@ def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
                     "nop_exception": (rows.get("nop") or {}).get("exception"),
                 }
             )
-    payload = {
+    return {
         "jobs": names,
         "tasks": len(tasks),
         "counts": counts,
         "findings": findings,
         "healthy": sorted(t for t in tasks if audit_classify(tasks[t].get("oracle"), tasks[t].get("nop")) == "healthy"),
     }
-    if as_json:
+
+def cmd_audit(jobs_dir: Path, args: list[str]) -> None:
+    names = [a for a in args if not a.startswith("--")]
+    as_json = "--json" in args
+    out_path = next((a.split("=", 1)[1] for a in args if a.startswith("--out=")), None)
+    if not names:
+        sys.exit("usage: bench_report.py audit <job>... [--json] [--out=path] [--host-limits=path]")
+    limits_path = next((a.split("=", 1)[1] for a in args if a.startswith("--host-limits=")), str(REPO / "docs" / "host-limits.json"))
+    limits = host_limits(limits_path)
+    jobs = [load_job(jobs_dir, n) for n in names]
+    tasks = audit_rows(jobs)
+    payload = audit_payload(tasks, names, limits)
+    counts = payload["counts"]
+    findings = payload["findings"]
+    if as_json and not out_path:
+        # --json alone has to print JSON: a documented machine-readable flag that
+        # silently emits a markdown table breaks every caller that pipes it.
         print(json.dumps(payload, indent=1))
         return
-
     print(f"### oracle/nop audit — {len(tasks)} tasks from {len(jobs)} job(s)")
     print()
     print("| class | tasks | meaning |")
@@ -1067,11 +1074,12 @@ def main() -> int:
     parser.add_argument("--jobs-dir", default=str(REPO / "results" / "jobs"))
     parser.add_argument("command", choices=("runs", "summary", "matrix", "steps", "compare", "credit", "export", "report", "diff", "audit", "json"))
     parser.add_argument("jobs", nargs="*", help="job names (all commands except `runs`)")
-    parser.add_argument("--json", action="store_true", help="compare: machine-readable output")
+    parser.add_argument("--json", action="store_true", help="compare/audit: machine-readable output")
     parser.add_argument("--out", help="report: write to this path instead of stdout")
     parser.add_argument("--include-task-side", action="store_true", help="report/export: keep known task-side cells")
     parser.add_argument("--iters", type=int, default=10000, help="compare: bootstrap iterations (default 10000)")
     parser.add_argument("--seed", type=int, default=0, help="compare: bootstrap seed (default 0)")
+    parser.add_argument("--host-limits", help="audit: registry of cells this host cannot measure (default docs/host-limits.json)")
     opts = parser.parse_args()
     jobs_dir = Path(opts.jobs_dir)
     if not jobs_dir.is_dir():
@@ -1086,6 +1094,10 @@ def main() -> int:
             passthrough.append(f"--out={opts.out}")
         if opts.include_task_side:
             passthrough.append("--include-task-side")
+        if opts.json:
+            passthrough.append("--json")
+        if opts.host_limits:
+            passthrough.append(f"--host-limits={opts.host_limits}")
         if opts.command == "compare":
             extra = [f"--iters={opts.iters}", f"--seed={opts.seed}"] + (["--json"] if opts.json else [])
             cmd_compare(jobs_dir, opts.jobs + extra)

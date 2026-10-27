@@ -17,6 +17,8 @@ import importlib.util
 import io
 import json
 import contextlib
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -129,6 +131,26 @@ def main() -> int:
         except SystemExit:
             ok = True
         check("an invalid registry fails loudly", ok)
+
+        # --- the CLI path must pass --json through (it is a global flag) ------
+        cli = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "bench_report.py"), "audit", "cab-audit-1",
+             "--jobs-dir", str(root), "--json"],
+            capture_output=True, text=True,
+        )
+        try:
+            payload = json.loads(cli.stdout)
+        except json.JSONDecodeError:
+            payload = None
+        check("CLI `audit --json` prints JSON, not a markdown table", isinstance(payload, dict), f"rc={cli.returncode} out={cli.stdout[:160]!r}")
+        check("CLI JSON carries the same counts", isinstance(payload, dict) and sum(payload["counts"].values()) == payload["tasks"], str(payload and payload.get("counts")))
+
+        cli_h = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "bench_report.py"), "audit", "cab-audit-1",
+             "--jobs-dir", str(root), "--host-limits", str(limits)],
+            capture_output=True, text=True,
+        )
+        check("CLI --host-limits reaches the classifier", "host-limited" in cli_h.stdout, f"rc={cli_h.returncode} out={cli_h.stdout[:200]!r}")
 
         jpath = root / "audit.json"
         with contextlib.redirect_stdout(io.StringIO()):
