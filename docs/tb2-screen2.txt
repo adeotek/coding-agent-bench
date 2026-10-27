@@ -1,0 +1,26 @@
+# 21 healthy, audited cells that no agent has ever been run on.
+# Selected from docs/tb2-all.txt by: oracle pass, nop fail (`make audit`), no agent trial in results/jobs.
+# Sorted smallest image first. Total 3.8 GB compressed for the whole list.
+# Phase 1 of docs/tb2-core-set.md: run moca + pi, 1 attempt, to find which cells discriminate.
+
+compile-compcert
+torch-pipeline-parallelism
+adaptive-rejection-sampler
+schemelike-metacircular-eval
+raman-fitting
+code-from-image
+regex-chess
+model-extraction-relu-logits
+largest-eigenval
+polyglot-c-py
+build-pov-ray
+path-tracing-reverse
+portfolio-optimization
+caffe-cifar-10
+chess-best-move
+polyglot-rust-c
+write-compressor
+winning-avg-corewars
+path-tracing
+make-mips-interpreter
+fix-ocaml-gc
