@@ -2,8 +2,13 @@
 # output budget on thinking (39k-61k-character turns, empty reply, `response
 # truncated`, exit 1). moca v0.7.11 retries such a turn once at a reduced effort.
 #
-# Run at k=3 on moca only: ~6 trials, pennies. The question is not "does moca
-# pass" but "does the truncation stop ending the run" — read the sessions for
-# `truncated` nudges and for the bound being hit twice.
+# Run twice at k=3, one variable apart — the release — and read the two arms
+# together (`docs/moca-bench-report.md`, "Truncation: two arms, same stimulus"):
+#   default pin (v0.7.11)   6 trials, $0.3492, 2/6 solved
+#   MOCA_VERSION=v0.7.10    6 trials, $0.1336, 0/6 solved
+# The stimulus is identical across arms — 6/6 trials truncate on both — so the
+# measurable difference is the agent's reaction: a truncation ended 6/6 runs at
+# v0.7.10 and 1/6 at v0.7.11. The reward delta it produces (0/3 -> 2/3 on
+# regex-chess) is directional at n=3 per arm, not significant.
 regex-chess
 adaptive-rejection-sampler

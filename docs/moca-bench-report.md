@@ -450,9 +450,11 @@ the audit is now a gate to re-run before every round, not a one-off. Full eviden
 
 **The pin is v0.7.11 and the 12-task numbers below are still v0.7.10's.** Nothing in v0.7.11 touches
 the subset: the release is the truncated-turn retry, measured on the two cells that motivated it
-(retest above — `regex-chess` 0/1 → 2/3, `adaptive-rejection-sampler` unchanged at 0/3, all six trials
-truncated at least once). The next subset round on this pin is what would move the table below, and a
-v0.7.10 control on those two cells is what would turn the retest into a comparison.
+(retest above — `regex-chess` 0/3 → 2/3 against the v0.7.10 control,
+`adaptive-rejection-sampler` unchanged at 0/3, and 6/6 trials truncated at least once in *both* arms). The next subset round on this pin is what would move the table below; the v0.7.10 control on those two
+cells has now run, and it is what makes the retest a two-arm result — a truncation is fatal 6/6 times at
+v0.7.10 and 1/6 at v0.7.11 (p = 0.015), while the reward delta it produces (0/3 → 2/3) is directional
+only.
 
 **Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
 above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
@@ -506,11 +508,13 @@ plus per-model overrides) — what was missing was the agent's *reaction*. A tur
 with no tool call now gets its own nudge that forbids deliberating, is retried once at a lowered effort,
 and ends the run with the cause named if it happens twice. The per-turn budget is left to the config.
 
-### Truncation retest — 2026-10-28, k=3 on v0.7.11 (`cab-subset-20261028-103325-2855858`)
+### Truncation: two arms, same stimulus — 2026-10-28 (`…-103325-2855858` v0.7.11, `…-114403-2964679` v0.7.10)
 
-moca v0.7.11 only, the two cells the screen lost, 3 attempts each: **6 trials, 1 h 02 m, $0.3492**
-(`bench_report.py summary`: 2/6 solved, $0.1746 per solve, median trial 916 s). Neither cell is in the
-12-task subset, so its matrix is unchanged by this round.
+The two cells the screen lost, 3 attempts each, one variable: the release. Same model, same 250-step
+budget, same `--mode yolo`, same concurrency, run back to back.
+
+**v0.7.11** — 6 trials, 1 h 02 m, $0.3492, **2/6 solved** (`bench_report.py summary`: $0.1746 per solve,
+median trial 916 s):
 
 | cell | attempt | reward | tool calls | truncations | bound hit | output tok | cost | end |
 |---|---|---|---|---|---|---|---|---|
@@ -521,24 +525,40 @@ moca v0.7.11 only, the two cells the screen lost, 3 attempts each: **6 trials, 1
 | `adaptive-rejection-sampler` | `oT4DnA9` | 0.0 | 27 | 1 | — | 61 231 | $0.0474 | verifier 0 |
 | `adaptive-rejection-sampler` | `okYuy5P` | 0.0 | 40 | 1 | — | 47 467 | $0.0465 | 900 s timeout |
 
-What the six trials say:
+**v0.7.10 (control)** — 6 trials, 17 m 52 s, $0.1336, **0/6 solved**, all six `NonZeroAgentExitCodeError`
+(`response truncated`, exit 1):
 
-- **The failure mode is common, not a quirk of two cells.** All 6 trials hit at least one truncated
-  turn — 32 845–96 609 output tokens of mostly thinking — so this was never a two-cell anomaly.
-- **The rescue works as designed.** 5 of the 6 truncated turns were followed by actual work (27–72 tool
-  calls); exactly one trial reached the two-truncation bound, and it failed cheaply: **2 tool calls and
-  $0.0206**, instead of the screen's 43 292-token burn ending in nothing.
-- **`regex-chess` moved: 0/1 → 2/3.** The screen's single trial produced no file at all; at k=3 two
-  attempts pass. That makes the cell *passable*; it is **not** an established improvement — the pre-fix
-  arm is n=1 and this round has no v0.7.10 control at k=3.
-- **`adaptive-rejection-sampler` did not move: 0/3**, and truncation is no longer why. All three
-  recovered from their truncation and did substantial work (68 / 27 / 40 tool calls), one still ran out
-  of the 900 s trial budget. This is the cell OpenCode also failed (8/9 tests before its own timeout),
-  so no harness-level truncation fix was going to win it; treat it as a both-fail cell on this model.
+| cell | attempt | reward | tool calls | output tok | cost | end |
+|---|---|---|---|---|---|---|
+| `regex-chess` | `Tc4aVyd` | 0.0 | 4 | 38 090 | $0.0243 | `response truncated` |
+| `regex-chess` | `poQ3tTW` | 0.0 | 2 | 32 848 | $0.0206 | `response truncated` |
+| `regex-chess` | `z3csPrN` | 0.0 | 6 | 43 223 | $0.0282 | `response truncated` |
+| `adaptive-rejection-sampler` | `2kFcipv` | 0.0 | 3 | 32 984 | $0.0205 | `response truncated` |
+| `adaptive-rejection-sampler` | `rb4ANQU` | 0.0 | 4 | 33 033 | $0.0200 | `response truncated` |
+| `adaptive-rejection-sampler` | `xVXyHyw` | 0.0 | 4 | 33 044 | $0.0200 | `response truncated` |
 
-Next step if this is worth closing properly: the same 2 cells × 3 attempts on **v0.7.10** (~$0.35) to
-turn the `regex-chess` delta into a two-arm comparison. Until then the honest claim is one cell moved
-from "never attempted" to "passable", on evidence that cannot exclude noise.
+| measure | v0.7.10 | v0.7.11 | test |
+|---|---|---|---|
+| trials that hit at least one truncation | 6/6 | 6/6 | **the stimulus is identical** (Fisher p = 1.00) |
+| runs *ended* by a truncation | **6/6** | **1/6** | Fisher p = **0.015** |
+| `regex-chess` solves | 0/3 | 2/3 | Fisher p = 0.40 — direction, not proof |
+| `adaptive-rejection-sampler` solves | 0/3 | 0/3 | — |
+| median tool calls per trial | 4 | 54 | |
+| cost for the six trials | $0.1336 | $0.3492 | the survivor does more work |
+
+What the design buys: **the model truncates exactly as often on both releases (6/6), so the input to the
+agent is the same and only its reaction differs.** At v0.7.10 a truncated turn ends the run every time,
+2–6 tool calls in; at v0.7.11 it ends the run once in six and the other five continue into 27–72 tool
+calls. The mechanism claim — *a truncation is no longer fatal* — is what the release was for, and it is
+significant at p = 0.015. The cost of a fatal truncation also fell: the one v0.7.11 trial that hit the
+bound spent 2 tool calls and $0.0206, the same as a v0.7.10 death, so the bound is not a new way to burn a
+budget.
+
+The reward claim is weaker and is written as such: `regex-chess` 0/3 → 2/3 is p = 0.40 at three attempts
+per arm. What it does establish is that the cell is **passable** — every v0.7.10 attempt died within six
+tool calls, and two v0.7.11 attempts solved it. `adaptive-rejection-sampler` is 0/3 in both arms and its
+v0.7.11 attempts did 27–68 tool calls before failing: truncation is not what blocks that cell, and OpenCode
+never passed it either (8/9 tests before its own timeout). Treat it as a both-fail cell on this model.
 
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set

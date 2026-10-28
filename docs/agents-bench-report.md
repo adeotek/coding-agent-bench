@@ -377,19 +377,24 @@ file. OpenCode on the same model reached 8/9 tests on one of those cells, which 
 harness finding rather than a ranking fact.
 
 v0.7.11 retries such a turn once at a reduced effort with a nudge that forbids deliberating, and ends the
-run if it happens twice. Retest, **v0.7.11 only, 2 cells × 3 attempts, 6 trials, $0.3492**
-(`cab-subset-20261028-103325-2855858`):
+run if it happens twice. Retested as a **two-arm comparison** — same 2 cells × 3 attempts, one variable
+(the release), run back to back (`…-103325-2855858` on v0.7.11, `…-114403-2964679` on v0.7.10):
 
-| cell | reward | truncations | outcome |
+| cell | v0.7.11 | v0.7.10 | |
 |---|---|---|---|
-| `regex-chess` | **2/3** (was 0/1 at v0.7.10) | 1 per trial, 2 in one | two solves; the third hit the two-truncation bound and failed cheap (2 tool calls, $0.0206) |
-| `adaptive-rejection-sampler` | 0/3 (unchanged) | 1 per trial | all three recovered and did the work (68 / 27 / 40 tool calls); one hit the 900 s cap |
+| `regex-chess` | **2/3** | 0/3 | two solves against none (Fisher p = 0.40 — direction, not proof) |
+| `adaptive-rejection-sampler` | 0/3 | 0/3 | unchanged; a both-fail cell on this model |
+| trials hitting ≥1 truncation | 6/6 | 6/6 | **same stimulus** (p = 1.00) |
+| runs *ended* by a truncation | **1/6** | **6/6** | **p = 0.015** |
+| cost for six trials | $0.3492 | $0.1336 | the survivor does 54 tool calls per trial against 4 |
 
-Read it as: **the failure mode was common — all 6 trials hit at least one truncated turn — and the fix
-makes it survivable, moving one of the two cells.** The `regex-chess` delta is not a controlled result:
-the pre-fix arm is n=1 and this round has no v0.7.10 control at k=3. Neither cell is in the 12- or
-24-task sets, so no number in the tables above changes; details and the per-trial table are in
-[`moca-bench-report.md`](moca-bench-report.md).
+The design is what makes it readable: **the model truncates exactly as often on both releases**, so the
+agent's input is identical and only its reaction differs. At v0.7.10 a truncated turn killed the run every
+time, 2–6 tool calls in; at v0.7.11 it killed one of six and the other five continued into real work. That
+mechanism claim is significant at p = 0.015. The reward gain (`regex-chess` 0/3 → 2/3) is p = 0.40 at three
+attempts per arm, so the honest statement is that the cell became **passable**, not that the release
+improved the score. Neither cell is in the 12- or 24-task sets, so no number in the tables above changes;
+per-trial tables are in [`moca-bench-report.md`](moca-bench-report.md).
 
 **Cross-agent lesson, added:** an empty reply at the output limit is not a model decision to stop — it
 is a budget being exhausted mid-thought. Before filing such a cell as "too hard" or as a capability
@@ -447,9 +452,10 @@ signal left is what the pass costs.
    comparison; mixing them would silently compare different dates.
 4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
    verdict — at n=12 a single flip is inside the noise band.
-5. **The pin is v0.7.11 and no four-agent sweep has run on it.** The retest above covers two cells on
-   moca only; a v0.7.10 control on those same cells (~$0.35) would turn its one delta into a
-   comparison, and a 24-task sweep on this pin is what would refresh this report's headline.
+5. **The pin is v0.7.11 and no four-agent sweep has run on it.** The two-arm retest above covers two
+   cells on moca only — the release's mechanism is established (p = 0.015) but the reward delta is not
+   (p = 0.40 at n=3/arm). A 24-task sweep on this pin is what would refresh this report's headline; a
+   k=10 arm on `regex-chess` (~$1) is what would put a CI on the cell.
 
 ## Update procedure
 
