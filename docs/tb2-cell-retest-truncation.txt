@@ -1,0 +1,9 @@
+# The two cells the 2026-10-27 Phase-1 screen lost to moca truncating its own
+# output budget on thinking (39k-61k-character turns, empty reply, `response
+# truncated`, exit 1). moca v0.7.11 retries such a turn once at a reduced effort.
+#
+# Run at k=3 on moca only: ~6 trials, pennies. The question is not "does moca
+# pass" but "does the truncation stop ending the run" — read the sessions for
+# `truncated` nudges and for the bound being hit twice.
+regex-chess
+adaptive-rejection-sampler
