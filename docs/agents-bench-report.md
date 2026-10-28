@@ -10,6 +10,61 @@ cross-agent view; the release-by-release moca history is in
 > not been measured since. Treat the table below as *what the field looked like at those pins*;
 > the current-pin comparison is the run this report is waiting for.
 
+## Headline — 2026-10-28, 23-cell sweep on the current pins (92 trials, 4 h 39 m, $14.84)
+
+The first four-agent run since 2026-10-26, and the first on moca v0.7.11. Same 24-task file; the run
+guard drops `build-cython-ext` as a broken task, so this is **23 cells × 4 agents × 1 attempt**.
+
+| agent | solved | cost | $/solved | tok/solved | median agent run | exceptions |
+|---|---|---|---|---|---|---|
+| Claude Code 2.1.310 | **20/23** | $13.2693 | $0.6635 | 1.22 M | 227 s | 1 timeout, 1 exit 1 |
+| **moca v0.7.11** | 18/23 | $0.5335 | **$0.0296** | 1.23 M | 155 s | 2 timeouts |
+| OpenCode 2.1.4 | 18/23 | $0.5847 | $0.0325 | 1.45 M | 219 s | 3 × exit 1 |
+| Pi 1.4.0 | 18/23 | $0.4532 | **$0.0252** | **0.83 M** | **147 s** | — |
+
+| task | claude · moca · opencode · pi |
+|---|---|
+| break-filter-js-from-html | P P P P |
+| circuit-fibsqrt | P P P P |
+| cobol-modernization | P P P P |
+| configure-git-webserver | F F P F |
+| crack-7z-hash | P P P P |
+| custom-memory-heap-crash | P P P P |
+| db-wal-recovery | P P P P |
+| dna-assembly | F F F F |
+| dna-insert | P P P F |
+| extract-elf | P P F P |
+| filter-js-from-html | F F F F |
+| fix-git | P P P P |
+| gcode-to-text | P F F P |
+| git-multibranch | P P P P |
+| kv-store-grpc | P P P P |
+| large-scale-text-editing | P P F F |
+| log-summary-date-ranges | P P P P |
+| mailman | P P P P |
+| multi-source-data-merger | P P P P |
+| nginx-request-logging | P P P P |
+| overfull-hbox | P P P P |
+| password-recovery | P P P P |
+| sanitize-git-repo | P F P P |
+
+**The three zen agents are one instrument, not three ranks.** Against the 2026-10-26 sweep, restricted to
+the same 23 cells, the verdict flipped on **6 cells for moca, 4 for OpenCode, 5 for Pi, 2 for Claude** —
+and OpenCode, Pi and Claude ran **the same binaries both times**. moca's flips cancel exactly
+(18/23 → 18/23: gained `dna-insert`, `large-scale-text-editing`, `overfull-hbox`; lost `dna-assembly`,
+`gcode-to-text`, `sanitize-git-repo`). A one-to-three cell gap between three agents whose own swing is
+four to six cells per run is not a ranking; it is the instrument's noise floor, and at n=1 per cell this
+sweep cannot lower it.
+
+Claude is the only difference that survives — 2 cells clear of the zen three here, 4 clear on the
+2026-10-26 slice — at **25× the cost per solve** ($0.6635 against $0.0296) and 1.5× the wall clock. It
+buys grindy cells with money. Whether that is worth it is a budget question, not a capability one.
+
+Two cells are shared losses and belong in the task audit, not a ranking: `filter-js-from-html` (0/4 every
+run ever) and `dna-assembly` (0/4 here, after Claude passed it once). `configure-git-webserver` is the
+known defective verifier — it flipped again (OpenCode up, everyone else down), which is what a verifier
+that accepts a leftover artifact does.
+
 ## Protocol
 
 | | |
@@ -20,7 +75,7 @@ cross-agent view; the release-by-release moca history is in
 | Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
 
-## Headline — 24-task set, two identical runs (192 trials)
+## Headline — 24-task set, two identical runs (192 trials) — superseded by the 2026-10-28 sweep above
 
 Two runs of the 24-task set, same pins, same models, same 250-step budget, one attempt per cell
 per run: `cab-subset-20261025-174057-3299781` (4 h 07 m) and `cab-subset-20261026-134414-1158148`
@@ -391,10 +446,18 @@ run if it happens twice. Retested as a **two-arm comparison** — same 2 cells �
 The design is what makes it readable: **the model truncates exactly as often on both releases**, so the
 agent's input is identical and only its reaction differs. At v0.7.10 a truncated turn killed the run every
 time, 2–6 tool calls in; at v0.7.11 it killed one of six and the other five continued into real work. That
-mechanism claim is significant at p = 0.015. The reward gain (`regex-chess` 0/3 → 2/3) is p = 0.40 at three
-attempts per arm, so the honest statement is that the cell became **passable**, not that the release
-improved the score. Neither cell is in the 12- or 24-task sets, so no number in the tables above changes;
-per-trial tables are in [`moca-bench-report.md`](moca-bench-report.md).
+mechanism claim is significant at p = 0.015.
+
+**The reward claim did not hold.** k=10 per arm, same day: **2/10 against 2/10**, p = 1.00; pooled over
+every attempt on the cell, 4/13 against 2/13, p = 0.64. The k=3 "one cell moved" reading was noise, and it
+is retracted in the moca report rather than deleted. What the k=10 arms exposed is that the rescue treats
+the wrong half of the problem: in the v0.7.11 failures the two truncations arrive back to back, and the
+truncating turn is often a **large output** — a 404-line file write, a whole module dumped to stdout — not
+runaway thinking. Lowering the effort does nothing for those, and one rescue per run is too few for a task
+that legitimately produces several large turns.
+
+Neither cell is in the 12- or 24-task sets, so no number in the tables above changes; per-trial tables are
+in [`moca-bench-report.md`](moca-bench-report.md).
 
 **Cross-agent lesson, added:** an empty reply at the output limit is not a model decision to stop — it
 is a budget being exhausted mid-thought. Before filing such a cell as "too hard" or as a capability
@@ -439,10 +502,10 @@ signal left is what the pass costs.
 
 ## What would make this report current
 
-1. **Repeat the 24-task sweep unchanged.** It is the current baseline and it was measured once.
-   At n=24 with one attempt the four CIs overlap, so the ordering (Claude 21, OpenCode/Pi 20,
-   moca 18) is directional; a second unchanged run is what turns it into a ranking — and on the
-   12-task set a repeat moved three cells between agents.
+1. **Stop repeating the sweep at n=1.** It has now been run three times, and each repeat moves 4–6
+   cells per agent *on unchanged binaries* — the ordering (Claude first, three zen agents level) is
+   stable, the per-agent scores are not. The next instrument that would actually answer a question is
+   k=3 on the ~8 cells that flipped in this round, not a fourth one-attempt sweep.
 2. **Read the task's verifier before believing a cell.** `configure-git-webserver` looked like
    moca's only structural defect until `tests/verify.sh` was read: it asserts a leftover artifact,
    not the behaviour, and Claude passed it once with no `sshd` installed. The remaining candidate
@@ -452,10 +515,10 @@ signal left is what the pass costs.
    comparison; mixing them would silently compare different dates.
 4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
    verdict — at n=12 a single flip is inside the noise band.
-5. **The pin is v0.7.11 and no four-agent sweep has run on it.** The two-arm retest above covers two
-   cells on moca only — the release's mechanism is established (p = 0.015) but the reward delta is not
-   (p = 0.40 at n=3/arm). A 24-task sweep on this pin is what would refresh this report's headline; a
-   k=10 arm on `regex-chess` (~$1) is what would put a CI on the cell.
+5. **The truncation cell needs a different fix, not more attempts.** The mechanism of moca v0.7.11 is
+   established (p = 0.015) and its reward effect on `regex-chess` is nil at k=10 (2/10 vs 2/10). The
+   evidence points at large single outputs and a one-rescue-per-run bound, which is a moca change, not a
+   bench measurement — measure it here at k=10 on that cell once it ships.
 
 ## Update procedure
 

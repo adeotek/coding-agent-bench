@@ -9,10 +9,11 @@ produced the diagnoses below are [`bench-2026-10-11-…`](bench-2026-10-11-moca-
 and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
 > **Pin vs measurement.** `MOCA_VERSION` is **v0.7.11** (released 2026-10-28, the truncated-turn
-> retry). It is measured on **two cells at k=3** (the retest below), not on the 12-task subset: the
-> newest *subset* measurement is still **v0.7.10, 11/12 on 2026-10-25** (`…20261025-014057-1313816`),
-> and that round also changed the model and the step budget — read it as a new baseline, since the
-> earlier glm rows at 100 steps are history, not the other arm of a controlled comparison.
+> retry) and it is measured: **18/23 on the four-agent sweep of 2026-10-28** and on the truncation arms
+> (two cells, k=3 and k=10). The 12-task subset has **not** been re-run on this pin — its newest number
+> is still **v0.7.10, 11/12 on 2026-10-25** (`…20261025-014057-1313816`), and that round also changed the
+> model and the step budget, so read it as a new baseline: the earlier glm rows at 100 steps are history,
+> not the other arm of a controlled comparison.
 
 ## Protocol
 
@@ -321,7 +322,7 @@ grinding (`dna-assembly` 45 turns/$0.082, `sanitize-git-repo` 943 K tokens, `cra
 Expected moca score there is ~18–20/24 — headroom a fix can actually move, which the 12-task
 set no longer has.
 
-## 24-task set — two identical runs (2026-10-25: 18/24, 2026-10-26: 19/24)
+## 24-task set — three sweeps (2026-10-25: 18/24, 2026-10-26: 19/24, 2026-10-28: 18/23)
 
 The screening sweep produced an instrument with headroom: `docs/tb2-subset-24.txt` is the fixed
 12 plus the five screening failures and seven cells that only passed by grinding. It has now been
@@ -341,6 +342,35 @@ both, but **13 of 96 cells changed verdict between two identical runs (13.5 %)**
 hold study flipped 3/48 (6 %), so the harder cells are twice as unstable. On the original twelve
 moca is 11/12 in both runs; the twelve added cells are where everything moves (moca 7/12 then
 8/12).
+
+### Third sweep, the v0.7.11 pin — 2026-10-28 (`cab-subset-20261028-154055-3278028`)
+
+Same file, all four agents, one attempt per cell, 4 h 39 m, **$14.84** ($13.27 of it Claude). One
+difference: the run guard drops `build-cython-ext` as a broken task, so this sweep is **23 cells, 92
+trials**, and every total below is out of 23 — not comparable to the 24-cell fractions above except
+through the per-cell matrix.
+
+| agent | solved | cost | $/solved | tok/solved | median agent run | median trial | exceptions |
+|---|---|---|---|---|---|---|---|
+| Claude Code 2.1.310 | **20/23** | $13.2693 | $0.6635 | 1.22 M | 227 s | 328 s | 1 timeout, 1 exit 1 |
+| **moca v0.7.11** | 18/23 | $0.5335 | **$0.0296** | 1.23 M | 155 s | 205 s | 2 timeouts |
+| OpenCode 2.1.4 | 18/23 | $0.5847 | $0.0325 | 1.45 M | 219 s | 320 s | 3 × exit 1 |
+| Pi 1.4.0 | 18/23 | $0.4532 | **$0.0252** | **0.83 M** | **147 s** | 207 s | — |
+
+**Nothing separates the three zen agents, and that is now measurable rather than asserted.** Against
+the 2026-10-26 sweep, restricted to the same 23 cells, the verdict changed on **6 cells for moca, 4 for
+OpenCode, 5 for Pi and 2 for Claude** — and three of those four agents ran **the same binaries both
+times**. moca's six flips cancel out (18/23 → 18/23: gained `dna-insert`,
+`large-scale-text-editing`, `overfull-hbox`; lost `dna-assembly`, `gcode-to-text`,
+`sanitize-git-repo`), which is the point: a 1–3 cell gap between the zen three is smaller than the
+run-to-run swing of a single agent on a fixed pin.
+
+Claude is the only gap that survives it — 2 cells up on moca in this run, 5 up on run 2's 23-cell
+slice — at **25× the cost per solve** ($0.6635 against $0.0296) and 1.5× the wall clock. That is the
+honest shape of the field: Claude buys a couple of grindy cells with money, and the three zen agents
+are one instrument, not three ranks.
+
+Cost of the whole round: $14.84 for 92 trials, of which the three zen agents are $1.57.
 
 ### What moca actually loses, over every sample
 
@@ -451,10 +481,11 @@ the audit is now a gate to re-run before every round, not a one-off. Full eviden
 **The pin is v0.7.11 and the 12-task numbers below are still v0.7.10's.** Nothing in v0.7.11 touches
 the subset: the release is the truncated-turn retry, measured on the two cells that motivated it
 (retest above — `regex-chess` 0/3 → 2/3 against the v0.7.10 control,
-`adaptive-rejection-sampler` unchanged at 0/3, and 6/6 trials truncated at least once in *both* arms). The next subset round on this pin is what would move the table below; the v0.7.10 control on those two
-cells has now run, and it is what makes the retest a two-arm result — a truncation is fatal 6/6 times at
-v0.7.10 and 1/6 at v0.7.11 (p = 0.015), while the reward delta it produces (0/3 → 2/3) is directional
-only.
+`adaptive-rejection-sampler` unchanged at 0/3, and 6/6 trials truncated at least once in *both* arms). What this pin has actually been measured on: the 23-cell four-agent sweep below (**18/23**, $0.0296 per
+solve, level with OpenCode and Pi, 2 cells behind Claude at 25× the price) and the truncation arms — where
+the *mechanism* is solid (a truncation ended 6/6 runs at v0.7.10 and 1/6 at v0.7.11, p = 0.015) but the
+*reward* claim is not: k=10 on `regex-chess` gives 2/10 against 2/10, so the k=3 "one cell moved" reading
+was noise and has been retracted in place. The 12-task numbers below are still v0.7.10's.
 
 **Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
 above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
@@ -541,7 +572,7 @@ median trial 916 s):
 |---|---|---|---|
 | trials that hit at least one truncation | 6/6 | 6/6 | **the stimulus is identical** (Fisher p = 1.00) |
 | runs *ended* by a truncation | **6/6** | **1/6** | Fisher p = **0.015** |
-| `regex-chess` solves | 0/3 | 2/3 | Fisher p = 0.40 — direction, not proof |
+| `regex-chess` solves (k=3) | 0/3 | 2/3 | Fisher p = 0.40 — **retracted below**: k=10 gives 2/10 vs 2/10, p = 1.00 |
 | `adaptive-rejection-sampler` solves | 0/3 | 0/3 | — |
 | median tool calls per trial | 4 | 54 | |
 | cost for the six trials | $0.1336 | $0.3492 | the survivor does more work |
@@ -554,11 +585,26 @@ significant at p = 0.015. The cost of a fatal truncation also fell: the one v0.7
 bound spent 2 tool calls and $0.0206, the same as a v0.7.10 death, so the bound is not a new way to burn a
 budget.
 
-The reward claim is weaker and is written as such: `regex-chess` 0/3 → 2/3 is p = 0.40 at three attempts
-per arm. What it does establish is that the cell is **passable** — every v0.7.10 attempt died within six
-tool calls, and two v0.7.11 attempts solved it. `adaptive-rejection-sampler` is 0/3 in both arms and its
-v0.7.11 attempts did 27–68 tool calls before failing: truncation is not what blocks that cell, and OpenCode
-never passed it either (8/9 tests before its own timeout). Treat it as a both-fail cell on this model.
+The reward claim did not survive more attempts. **k=10 on each arm, later the same day**
+(`…-135325-3120017` v0.7.11, `…-145731-3210350` v0.7.10): **2/10 against 2/10**, Fisher p = 1.00, eight
+exit-1 trials in each arm. Pooled over every attempt on this cell (4/13 against 2/13) the difference is
+p = 0.64. The k=3 "one cell moved" reading in the first draft of this section was **noise** — three
+attempts per arm cannot resolve a cell whose own run-to-run swing is that wide, which is the same lesson
+the 24-task sweeps teach below.
+
+What the k=10 arms do show is *why* the rescue stops short, and it is a better finding than the score. In
+the v0.7.11 arm the two truncations arrive **back to back**, 0–4 tool calls apart, and the turn that
+truncates is not always deliberation: `write /app/gen_re.py [+404]` (a 404-line file in one turn) and
+`python3 -c "import chess,inspect; print(inspect.getsource(…))"` (a whole module dumped to stdout) both
+appear at a truncation point. The screen's diagnosis — runaway *thinking* — was half the story; the other
+half is runaway *output*, and a lowered effort does nothing for a 400-line write. The bound then ends the
+run, because one rescue per run is not enough for a task that legitimately produces several large turns.
+
+Next moca action, if this cell is worth another round: the rescue nudge should direct the model to **split
+large outputs** (write files in chunks, read ranges instead of whole files), and the bound should allow
+more than one rescue per run. `adaptive-rejection-sampler` is 0/3 in both arms and its v0.7.11 attempts did
+27–68 tool calls before failing: truncation is not what blocks that cell, and OpenCode never passed it
+either (8/9 tests before its own timeout). Treat it as a both-fail cell on this model.
 
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set
