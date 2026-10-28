@@ -367,6 +367,34 @@ same task in 45 s the week before. `filter-js` is the other loss.
    assertions cost every agent the same points; they belong in the task audit, not in a
    ranking.
 
+## Truncation — moca's own failure mode, fixed and re-measured (2026-10-28, k=3)
+
+The 21-cell screen found a loss mode that is neither capability nor task-side: **moca can put its whole
+per-turn output budget into thinking and return nothing.** On `regex-chess` and
+`adaptive-rejection-sampler` the sessions show 39 905 / 61 124 / 61 291 characters of thinking per turn
+with zero text, then `response truncated (token limit reached)` and exit 1 — 43 292 output tokens, no
+file. OpenCode on the same model reached 8/9 tests on one of those cells, which is what made it a
+harness finding rather than a ranking fact.
+
+v0.7.11 retries such a turn once at a reduced effort with a nudge that forbids deliberating, and ends the
+run if it happens twice. Retest, **v0.7.11 only, 2 cells × 3 attempts, 6 trials, $0.3492**
+(`cab-subset-20261028-103325-2855858`):
+
+| cell | reward | truncations | outcome |
+|---|---|---|---|
+| `regex-chess` | **2/3** (was 0/1 at v0.7.10) | 1 per trial, 2 in one | two solves; the third hit the two-truncation bound and failed cheap (2 tool calls, $0.0206) |
+| `adaptive-rejection-sampler` | 0/3 (unchanged) | 1 per trial | all three recovered and did the work (68 / 27 / 40 tool calls); one hit the 900 s cap |
+
+Read it as: **the failure mode was common — all 6 trials hit at least one truncated turn — and the fix
+makes it survivable, moving one of the two cells.** The `regex-chess` delta is not a controlled result:
+the pre-fix arm is n=1 and this round has no v0.7.10 control at k=3. Neither cell is in the 12- or
+24-task sets, so no number in the tables above changes; details and the per-trial table are in
+[`moca-bench-report.md`](moca-bench-report.md).
+
+**Cross-agent lesson, added:** an empty reply at the output limit is not a model decision to stop — it
+is a budget being exhausted mid-thought. Before filing such a cell as "too hard" or as a capability
+gap, read the losing agent's session for the stop reason.
+
 ## Task audit — the cells themselves (2026-10-26/27, zero tokens)
 
 Every cell in `docs/tb2-all.txt` was audited with Harbor's own agents before planning anything at
@@ -419,6 +447,9 @@ signal left is what the pass costs.
    comparison; mixing them would silently compare different dates.
 4. **If a cell decides the ranking, cell-run it** (`N_ATTEMPTS=3`) before writing it into the
    verdict — at n=12 a single flip is inside the noise band.
+5. **The pin is v0.7.11 and no four-agent sweep has run on it.** The retest above covers two cells on
+   moca only; a v0.7.10 control on those same cells (~$0.35) would turn its one delta into a
+   comparison, and a 24-task sweep on this pin is what would refresh this report's headline.
 
 ## Update procedure
 

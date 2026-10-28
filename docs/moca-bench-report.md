@@ -8,10 +8,11 @@ trusting this prose. The cross-agent comparison lives in
 produced the diagnoses below are [`bench-2026-10-11-…`](bench-2026-10-11-moca-claude-code-pi.md)
 and [`bench-2026-10-16-…`](bench-2026-10-16-moca-claude-code-pi-opencode.md).
 
-> **Pin vs measurement.** `MOCA_VERSION` is **v0.7.10** (released 2026-10-24) and it is
-> **measured**: 11/12 on 2026-10-25 (`…20261025-014057-1313816`). That round also changed the
-> model and the step budget, so read it as a new baseline — the earlier glm rows at 100 steps
-> are history, not the other arm of a controlled comparison.
+> **Pin vs measurement.** `MOCA_VERSION` is **v0.7.11** (released 2026-10-28, the truncated-turn
+> retry). It is measured on **two cells at k=3** (the retest below), not on the 12-task subset: the
+> newest *subset* measurement is still **v0.7.10, 11/12 on 2026-10-25** (`…20261025-014057-1313816`),
+> and that round also changed the model and the step budget — read it as a new baseline, since the
+> earlier glm rows at 100 steps are history, not the other arm of a controlled comparison.
 
 ## Protocol
 
@@ -445,7 +446,13 @@ because `build-cython-ext` rotted from "all agents pass" to "oracle fails" **ins
 the audit is now a gate to re-run before every round, not a one-off. Full evidence:
 `docs/task-defects.md`.
 
-## Summary — where v0.7.10 stands, against every earlier release
+## Summary — where the current pin stands, against every earlier release
+
+**The pin is v0.7.11 and the 12-task numbers below are still v0.7.10's.** Nothing in v0.7.11 touches
+the subset: the release is the truncated-turn retry, measured on the two cells that motivated it
+(retest above — `regex-chess` 0/1 → 2/3, `adaptive-rejection-sampler` unchanged at 0/3, all six trials
+truncated at least once). The next subset round on this pin is what would move the table below, and a
+v0.7.10 control on those two cells is what would turn the retest into a comparison.
 
 **Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
 above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
@@ -470,7 +477,7 @@ cleaning up after a successful end-to-end test. The only candidate left is
 report's history turned out to be noise or a verifier artefact (the budget's regressions, the
 literal-constraint class, `dna-assembly` as a capability gap, `configure-git-webserver` as a
 defect) — every one was caught before a fix was written, which is the standard this report now
-holds itself to. **No moca code change is currently justified by the 24-task data.**
+holds itself to. **No moca code change is currently justified by the 24-task data.** The one change since (v0.7.11's truncation retry) came from the 21-cell screen, not from this set — and its retest moved one of the two cells it was aimed at.
 
 ### What the 21-cell screen adds (2026-10-27 — a screen, not a release round)
 
@@ -493,7 +500,45 @@ runaway reasoning turn cannot consume a run; (2) after two empty replies, a cons
 with a tool call" turn instead of ending the session. The verifier scored both cells 0.0, which is
 the correct bench number — the diagnosis is what changes the fix, not the score.
 
-**Fixed in moca PR #73** (`fix/truncated-turn-rescue`, v0.7.11 unreleased): a turn that stops at `length` with no tool call is retried once at a reduced effort with a nudge that forbids deliberating, and a second truncation ends the run with the cause named. Verified by unit tests and a live run of the built binary against a server that always truncates (two requests, exit 1).
+Action taken (shipped in **v0.7.11**, moca PR #73): the diagnosis above named a bounded output budget
+as the first lever, and that knob already exists (`min(model.maxOutputTokens, context.reserveTokens)`,
+plus per-model overrides) — what was missing was the agent's *reaction*. A turn that stops at `length`
+with no tool call now gets its own nudge that forbids deliberating, is retried once at a lowered effort,
+and ends the run with the cause named if it happens twice. The per-turn budget is left to the config.
+
+### Truncation retest — 2026-10-28, k=3 on v0.7.11 (`cab-subset-20261028-103325-2855858`)
+
+moca v0.7.11 only, the two cells the screen lost, 3 attempts each: **6 trials, 1 h 02 m, $0.3492**
+(`bench_report.py summary`: 2/6 solved, $0.1746 per solve, median trial 916 s). Neither cell is in the
+12-task subset, so its matrix is unchanged by this round.
+
+| cell | attempt | reward | tool calls | truncations | bound hit | output tok | cost | end |
+|---|---|---|---|---|---|---|---|---|
+| `regex-chess` | `Z7vPsBd` | **1.0** | 69 | 1 | — | 66 539 | $0.0795 | solved |
+| `regex-chess` | `xb9NPk8` | **1.0** | 72 | 1 | — | 96 609 | $0.1016 | solved |
+| `regex-chess` | `R3MtvTk` | 0.0 | 2 | 2 | **yes** | 32 845 | $0.0206 | `response truncated`, exit 1 |
+| `adaptive-rejection-sampler` | `2voauCp` | 0.0 | 68 | 1 | — | 58 807 | $0.0536 | verifier 0 |
+| `adaptive-rejection-sampler` | `oT4DnA9` | 0.0 | 27 | 1 | — | 61 231 | $0.0474 | verifier 0 |
+| `adaptive-rejection-sampler` | `okYuy5P` | 0.0 | 40 | 1 | — | 47 467 | $0.0465 | 900 s timeout |
+
+What the six trials say:
+
+- **The failure mode is common, not a quirk of two cells.** All 6 trials hit at least one truncated
+  turn — 32 845–96 609 output tokens of mostly thinking — so this was never a two-cell anomaly.
+- **The rescue works as designed.** 5 of the 6 truncated turns were followed by actual work (27–72 tool
+  calls); exactly one trial reached the two-truncation bound, and it failed cheaply: **2 tool calls and
+  $0.0206**, instead of the screen's 43 292-token burn ending in nothing.
+- **`regex-chess` moved: 0/1 → 2/3.** The screen's single trial produced no file at all; at k=3 two
+  attempts pass. That makes the cell *passable*; it is **not** an established improvement — the pre-fix
+  arm is n=1 and this round has no v0.7.10 control at k=3.
+- **`adaptive-rejection-sampler` did not move: 0/3**, and truncation is no longer why. All three
+  recovered from their truncation and did substantial work (68 / 27 / 40 tool calls), one still ran out
+  of the 900 s trial budget. This is the cell OpenCode also failed (8/9 tests before its own timeout),
+  so no harness-level truncation fix was going to win it; treat it as a both-fail cell on this model.
+
+Next step if this is worth closing properly: the same 2 cells × 3 attempts on **v0.7.10** (~$0.35) to
+turn the `regex-chess` delta into a two-arm comparison. Until then the honest claim is one cell moved
+from "never attempted" to "passable", on evidence that cannot exclude noise.
 
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set
