@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup doctor test probe dry-run smoke subset full sharded screen render audit report view net-view prune
+.PHONY: help setup doctor test probe dry-run smoke subset full sharded screen render audit report view net-view prune runlist audit-watch stability determinism
 
 help: ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-10s %s\n", $$1, $$2}'
@@ -14,6 +14,7 @@ doctor: ## check docker/harbor/adapter/credentials (ARGS=--probe for live probes
 
 test: ## harness unit tests: moca run line + session mirror, report parsers, harbor pin guard (no spend)
 	PYTHONPATH="$(CURDIR)" "$$(uv tool dir)/harbor/bin/python" test/moca_run_command_test.py
+	python3 test/bench_cell_stability_test.py
 	python3 test/bench_report_steps_test.py
 	python3 test/bench_report_compare_test.py
 	python3 test/bench_report_report_test.py
@@ -56,6 +57,12 @@ audit: ## oracle/nop task-quality audit over docs/tb2-all.txt (no tokens; drops 
 
 runlist: ## derive docs/tb2-measurable.txt + docs/tb2-watch.txt from the audit (no spend)
 	./scripts/runlist.sh
+
+stability: ## derive docs/cell-stability.json + docs/tb2-ranking.txt from the job store (no spend)
+	python3 scripts/cell_stability.py --print
+
+determinism: ## probe whether the model endpoint repeats itself (temperature 0 / seed / fresh sessions, cents)
+	python3 scripts/determinism_probe.py -n 6
 
 audit-watch: ## re-audit the cells that are not healthy (no tokens) — did any get fixed, or rot?
 	./scripts/audit-watch.sh

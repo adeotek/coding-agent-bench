@@ -127,6 +127,40 @@ def verdict(row: dict) -> str:
     return "P" if reward >= 1 else "F"
 
 
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95 % Wilson score interval for k successes in n trials.
+
+    Wilson rather than the normal approximation because a cell routinely runs at
+    0/n or n/n, where the normal interval collapses to a point and a rate of
+    3/3 would read as certainty. Wilson keeps a real width there, which is the
+    whole reason this layer prints intervals instead of verdicts.
+    """
+    if n <= 0:
+        return (0.0, 1.0)
+    p = k / n
+    d = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / d
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+def rate_cell(k: int, n: int) -> str:
+    """`k/n` plus its 95 % interval — the only honest form of a per-cell result."""
+    if n <= 0:
+        return "—"
+    lo, hi = wilson(k, n)
+    return f"{k}/{n} {k / n * 100:.0f}% ({lo * 100:.0f}–{hi * 100:.0f}%)"
+
+
+def single_draw_cells(job: dict) -> int:
+    """(task, agent) pairs measured exactly once — cells that cannot carry a verdict."""
+    counts: dict[tuple[str, str], int] = {}
+    for r in job["rows"]:
+        key = (r["task"] or "?", r["agent"])
+        counts[key] = counts.get(key, 0) + 1
+    return sum(1 for n in counts.values() if n == 1)
+
+
 def agents_label(job: dict) -> str:
     parts = []
     for agent in job["config"].get("agents") or []:
@@ -160,8 +194,8 @@ def cmd_summary(jobs_dir: Path, args: list[str]) -> None:
     for name in args:
         job = load_job(jobs_dir, name)
         print(f"\n### {name} — {agents_label(job)}\n")
-        print("| agent | solved | cost | $/solved | input tokens | tok/solved | median agent run | median trial |")
-        print("|---|---|---|---|---|---|---|---|")
+        print("| agent | solved | rate (95% CI) | cost | $/solved | input tokens | tok/solved | median agent run | median trial |")
+        print("|---|---|---|---|---|---|---|---|---|")
         agents = sorted({r["agent"] for r in job["rows"]})
         for agent in agents:
             rows = [r for r in job["rows"] if r["agent"] == agent]
@@ -174,20 +208,48 @@ def cmd_summary(jobs_dir: Path, args: list[str]) -> None:
             tok_solved = f"{tokens / passed / 1e6:.2f} M" if passed else "—"
             med_agent = f"{statistics.median(agent_s):.0f}s" if agent_s else "—"
             med_trial = f"{statistics.median(trial_s):.0f}s" if trial_s else "—"
+            lo, hi = wilson(passed, len(rows))
             print(
-                f"| {agent} | {passed}/{len(rows)} | ${cost:.4f} | {per_solved} "
+                f"| {agent} | {passed}/{len(rows)} | {passed / len(rows) * 100:.0f}% "
+                f"({lo * 100:.0f}–{hi * 100:.0f}%) | ${cost:.4f} | {per_solved} "
                 f"| {tokens / 1e6:.2f} M | {tok_solved} | {med_agent} | {med_trial} |"
+            )
+        singles = single_draw_cells(job)
+        if singles:
+            print(
+                f"\n> **{singles} of {len({(r['task'], r['agent']) for r in job['rows']})} cells are a single draw** "
+                f"(N_ATTEMPTS=1): the aggregate is a rate with the interval above, but a per-cell result from "
+                f"this job is one sample, not a verdict — `matrix` refuses it unless `--allow-n1`."
             )
 
 
 def cmd_matrix(jobs_dir: Path, args: list[str]) -> None:
-    jobs = [load_job(jobs_dir, name) for name in args]
+    """Per-cell rates, and a refusal when a cell was measured once.
+
+    The old version printed one letter per attempt. That reads as a verdict
+    ("P"/"F") and is how four cell-level claims in this repo's history were
+    written from a single draw. A cell now prints `k/n` with its interval, and
+    a job whose cells were each attempted once is refused outright: at n=1 the
+    letter is a sample, and the honest thing is to say so instead of printing it.
+    """
+    allow_n1 = "--allow-n1" in args
+    names = [a for a in args if a != "--allow-n1"]
+    jobs = [load_job(jobs_dir, name) for name in names]
+    singles = {job["name"]: single_draw_cells(job) for job in jobs}
+    if any(singles.values()) and not allow_n1:
+        worst = max(singles.values())
+        detail = ", ".join(f"{n}: {c} cells" for n, c in singles.items() if c)
+        print(
+            "bench_report: refused — a per-cell verdict needs more than one draw.\n"
+            f"  single-draw cells: {detail} (worst job {worst}).\n"
+            "  Cells were attempted once, so every letter is one sample from that cell's\n"
+            "  own rate (measured here: 10 of 24 split pairs at k=3, see docs/cell-stability.json).\n"
+            "  Re-run the cells with N_ATTEMPTS=3, or pass --allow-n1 to print raw rates\n"
+            "  (k/n, never letters).",
+            file=sys.stderr,
+        )
+        return 2
     tasks = sorted({r["task"] for job in jobs for r in job["rows"]})
-    # A fixed, stated agent order. Trial directories are named task__<random>, so
-    # iterating them in path order produced letters whose agent order changed per
-    # task — unreadable, and easy to misreport (claude-code's db-wal loss read as
-    # a pi loss). Letters are now grouped by agent, alphabetically, with attempts
-    # in trial order inside a group; a missing agent shows as a dot.
     agents = sorted({r["agent"] for job in jobs for r in job["rows"]})
     columns = [f"{job['name']}" for job in jobs]
     print("| task | " + " | ".join(columns) + " |")
@@ -199,18 +261,20 @@ def cmd_matrix(jobs_dir: Path, args: list[str]) -> None:
             if not rows:
                 cells.append("—")
                 continue
-            by_agent: dict[str, list[str]] = {}
-            for r in sorted(rows, key=lambda r: (r["agent"], r["trial"] or "")):
-                by_agent.setdefault(r["agent"], []).append(verdict(r))
-            cells.append(
-                " ".join(
-                    "".join(by_agent[a]) if a in by_agent else "·" for a in agents
-                )
-            )
+            parts = []
+            for agent in agents:
+                mine = [r for r in rows if r["agent"] == agent]
+                if not mine:
+                    parts.append("·")
+                    continue
+                k = sum(1 for r in mine if verdict(r) == "P")
+                parts.append(rate_cell(k, len(mine)))
+            cells.append(" ".join(parts))
         print(f"| {task} | " + " | ".join(cells) + " |")
     print()
-    print("letters are grouped by agent, in this order: " + " · ".join(agents) +
-          " (attempts in trial order inside a group; `·` = no trial for that agent)")
+    print("cells are `k/n rate (95% Wilson interval)`, grouped by agent in this order: "
+          + " · ".join(agents) + " (`·` = no trial for that agent, `—` = the job did not run the task)")
+    return 0
 
 
 def _short_exc(name: str | None) -> str:
@@ -832,6 +896,16 @@ def cmd_report(jobs_dir: Path, args: list[str]) -> None:
             add("- **manifest**: absent (job predates manifests) — toolchain unverified")
         add("")
 
+    singles = sum(single_draw_cells(job) for job in jobs)
+    if singles:
+        add(
+            f"> **{singles} cells in this report were attempted once.** The aggregate scores carry the CI "
+            f"beside them and are quotable; a single cell is one draw from that cell's own rate and is not "
+            f"a verdict (measured: 10 of 24 pairs still split at k=3 — `docs/cell-stability.json`). "
+            f"`matrix` refuses these jobs by design."
+        )
+        add("")
+
     add("## Leaderboard")
     add("")
     add("| agent | tasks | score | 95 % CI | credit | $/task | $ p50 / p90 | $/solved | no verdict |")
@@ -1242,8 +1316,12 @@ def main() -> int:
                 jobs_dir, opts.jobs + passthrough
             )
         else:
-            {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
-             "json": cmd_json}[opts.command](jobs_dir, opts.jobs)
+            # matrix can refuse (a single-draw cell is not a verdict): its exit
+            # code has to survive the dispatcher, or the refusal is decoration.
+            rc = {"summary": cmd_summary, "matrix": cmd_matrix, "steps": cmd_steps,
+                  "json": cmd_json}[opts.command](jobs_dir, opts.jobs)
+            if rc:
+                return rc
     return 0
 
 

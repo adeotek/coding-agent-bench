@@ -94,7 +94,7 @@ make subset         # terminal-bench@2.0, first N_TASKS tasks (default 20) × 4 
 ```
 
 - Runs for **hours**, not minutes: expect several hours with `N_CONCURRENT=2` on a 6-core box.
-- API cost is real: budget a couple of dollars to low tens of dollars per sweep for the zen models, more for Claude. Raise `N_ATTEMPTS` (e.g. 3) only after the pipeline is proven.
+- API cost is real: budget a couple of dollars to low tens of dollars per sweep for the zen models, more for Claude. The profile defaults to **`N_ATTEMPTS=3`** because one attempt is one draw from a cell's own rate — set `N_ATTEMPTS=1` only for a wiring check, and expect `bench_report.py matrix` to refuse the job.
 - Prefer a **fixed task list** for comparability across runs:
 
   ```bash
@@ -160,7 +160,7 @@ moca's token/cost usage is backfilled by the adapter from its session JSONL, so 
 | `N_TASKS` | `20` | subset size |
 | `TASK_NAMES` | — | comma-separated task names (overrides `N_TASKS`) |
 | `N_CONCURRENT` | `2` | concurrent trials (raise on a bigger machine) |
-| `N_ATTEMPTS` | `1` | attempts per task × agent (raise for variance estimates) |
+| `N_ATTEMPTS` | `3` | attempts per task × agent — 3 for `subset`/`full`, 1 for `smoke`/`audit`; a per-cell verdict needs ≥3 (see [Determinism](#determinism-and-the-instrument-s-floor)) |
 | `AGENTS` | all four | comma-separated subset |
 | `JOBS_DIR` | `results/jobs` | where job results go |
 | `HARBOR_VERSION` | `0.25.0` | Harbor pin — `run`/`dry-run` refuse to start on any other installed version |
@@ -222,6 +222,36 @@ Three invariants keep that honest, and the test suite pins all three:
 
 `SHARD` needs an explicit list (`TASK_FILE` or `TASK_NAMES`); slicing an `n_tasks`
 dataset would mean guessing which tasks Harbor picks, so the render refuses instead.
+
+## Determinism and the instrument's floor
+
+A coding agent is a sampler: no seed, no temperature pin, and every tool result feeds the next draw. So a
+cell does not "pass or fail" — it has a **rate**, and one attempt is one sample from it. Measured on this
+bench (2026-10-30, eight cells whose verdicts had flipped between two sweeps, three zen agents, 3 attempts
+each): **10 of 24 (cell, agent) pairs were still split at three attempts**, and the sweep-to-sweep swing of
+4–6 cells per agent is exactly what those rates must produce. Four cell-level claims in this repo's history
+were written from a single draw before that was understood.
+
+What the tooling does about it:
+
+- **`N_ATTEMPTS` defaults to 3** for `subset`/`full` (`1` for `smoke`/`audit`, which have no sampling
+  variance worth repeating). `render_config.py` prints a warning when a comparison run is forced to one.
+- **`bench_report.py matrix` refuses a single-draw job** (exit 2) and prints `k/n rate (95% Wilson interval)`
+  when it does run. `--allow-n1` overrides for forensics; it still prints rates, never letters.
+- **`make stability`** derives [`docs/cell-stability.json`](docs/cell-stability.json) and
+  [`docs/tb2-ranking.txt`](docs/tb2-ranking.txt) from the job store: per (cell, agent) k/n, its class
+  (`passes`/`fails`/`flaky`/`insufficient`), and which cells can actually rank agents — at least two agents
+  measured ≥3 times with rates ≥ 0.33 apart, excluding `docs/task-side.json` cells, Harbor's `nop`/`oracle`
+  calibration columns, and any release but each agent's newest. Use that list as `TASK_FILE` for a
+  comparison round; a cell everyone passes is stable and useless for ordering.
+- **`make determinism`** asks the endpoint directly whether the noise is removable: N identical requests with
+  `temperature: 0` + a fixed `seed` + a fixed session, the same without sampling parameters, and the same
+  pinned request on a fresh session each time. Findings in [`docs/determinism.md`](docs/determinism.md).
+
+The honest consequence: **rates, not verdicts.** With these rates, a 1–3 cell gap between three agents is
+below the instrument's floor at one attempt, and the aggregate carries ±2–3 cells per agent. Ranking them
+needs the paired multi-attempt design on the ranking cells — and it costs wall clock: eight cells at three
+attempts took 4 h 49 m, more than a 23-cell single-attempt sweep.
 
 ## Troubleshooting
 

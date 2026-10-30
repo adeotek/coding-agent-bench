@@ -16,7 +16,9 @@ the parent set, and a stitched report *says* what it covers. Pinned here:
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -169,6 +171,32 @@ def main() -> int:
 
         unsharded = write_job("cab-subset-plain", tasks[0:4], None)
         check("an unsharded job has no set section", bench.set_lines(bench.set_info(jobs_dir, [{"name": "cab-subset-plain", "rows": unsharded["rows"]}])) == [])
+
+    # --- attempts default: a comparison buys 3 draws, a wiring check 1 -------
+    saved = {k: os.environ.pop(k, None) for k in ("N_ATTEMPTS", "TASK_NAMES", "TASK_FILE")}
+    try:
+        os.environ["TASK_NAMES"] = "alpha,beta"
+        check("attempts: subset defaults to 3", rc.build("subset")["n_attempts"] == 3)
+        check("attempts: full defaults to 3", rc.build("full")["n_attempts"] == 3)
+        check("attempts: smoke stays at 1", rc.build("smoke")["n_attempts"] == 1)
+        os.environ["N_ATTEMPTS"] = "4"
+        check("attempts: an explicit N_ATTEMPTS wins", rc.build("subset")["n_attempts"] == 4)
+        os.environ["N_ATTEMPTS"] = "1"
+        buf, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+            rc.build("subset")
+        check("attempts: N_ATTEMPTS=1 on a comparison warns", "single draw" in err.getvalue(),
+              err.getvalue()[:120])
+        err2 = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err2):
+            rc.build("smoke")
+        check("attempts: smoke at 1 does not warn", "single draw" not in err2.getvalue())
+    finally:
+        os.environ.pop("N_ATTEMPTS", None)
+        os.environ.pop("TASK_NAMES", None)
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
 
     if FAILS:
         print(f"\n{len(FAILS)} check(s) failed: {', '.join(FAILS)}")
