@@ -168,6 +168,7 @@ models are used where the question is "is this the model or the agent?".
 | 10-25 | v0.7.10 | mailman, custom-memory, cobol, filter-js × 3 @ 250 | **mailman 3/3**, **custom-memory 3/3**, **cobol 3/3**; filter-js **0/3 scored** (2 × verifier timeout, 1 fail) | `…033114-1747413` | $0.370 |
 | 10-25 | v0.7.10 | the 24-set's five losses + `log-summary` canary × 3 @ 250 | **configure-git 0/3**, **dna-assembly 0/3**, **large-scale 1/3**, **sanitize-git 1/3**, **overfull-hbox 3/3**; canary 3/3 | `…221348-209862` | $0.263 |
 | 10-25 | v0.7.4 | build-cython, extract-elf, log-summary, custom-memory × 3 @ 250, glm | **extract-elf 3/3**, **log-summary 3/3**, build-cython **2/3**, custom-memory **2/3** (one attempt burned 246 turns / 12.8 M tokens / $0.4348 and still passed) | `…165250-3205787` | $0.821 |
+| 10-30 | v0.7.12 | the 8 cells that flipped between sweeps × 3, three zen agents (noise bar) | **moca 11/24** — 3 pairs split at k=3 (`dna-insert` 1/3, `large-scale-text-editing` 2/3, `sanitize-git-repo` 2/3) | `…180311-1319333` | $1.957 (all three agents) |
 
 What the cell runs settled, and the rules that came out of them:
 
@@ -207,6 +208,42 @@ What the cell runs settled, and the rules that came out of them:
   (no verdict) and one clean fail on `test_clean_html_unchanged`, the byte-exact assertion.
   Seventeen attempts across four agents and two models have produced zero passes. It is a
   task-side cell, and a flaky one; the scoreboard should not carry it in the denominator.
+
+### The instrument's floor — 8 flapping cells, three attempts each (2026-10-30, `cab-subset-20261030-180311-1319333`)
+
+The two 23-cell sweeps moved 6, 4 and 5 cells per zen agent on byte-identical binaries, which is why this
+report refuses to rank agents on one attempt. This run measures why: the eight cells whose verdicts moved
+for any zen agent (`docs/tb2-noisebar.txt`), three agents, three attempts, 72 trials, 4 h 49 m, $1.9574.
+The cross-agent reading is in [`agents-bench-report.md`](agents-bench-report.md); the moca column, on the
+current pin:
+
+| cell | moca, k=3 | between the two sweeps moca went |
+|---|---|---|
+| `dna-assembly` | 0/3 | fail → pass |
+| `dna-insert` | **1/3** | pass → fail |
+| `extract-elf` | 3/3 | unchanged |
+| `gcode-to-text` | 0/3 | fail → pass |
+| `large-scale-text-editing` | **2/3** | pass → fail |
+| `overfull-hbox` | 3/3 | pass → fail |
+| `sanitize-git-repo` | **2/3** | fail → pass |
+| `configure-git-webserver` | 0/3 | unchanged |
+
+Three of the six cells moca flipped on are split at three attempts (`dna-insert`, `large-scale-text-editing`,
+`sanitize-git-repo`): for those, "moca passes this cell" was always a coin flip with a verdict attached. The
+other three are unanimous here — `overfull-hbox` 3/3, `dna-assembly` and `gcode-to-text` 0/3 — so their
+movement is drift rather than sampling noise, and at 0/3 a cell's rate is only bounded at ≤63 %, which is
+exactly why a unanimous k=3 is not a "never passes" verdict either.
+
+The arithmetic is worth stating: from moca's own measured rates on these eight cells, two independent
+one-attempt runs are expected to disagree on **1.3** cells. The sweep-level movement (6 of 23) is the same
+phenomenon at three times the cell count. Nothing about moca's releases is required to explain it.
+
+moca's 11/24 here against OpenCode's 16/24 and Pi's 13/24 is **descriptive only** — eight cells cannot rank
+three agents, and moca is the one column not like-for-like in this job: it ran v0.7.12 (the pin) while the
+flips were recorded at v0.7.11, and the only thing separating those releases is the truncated-turn path
+(measured separately above). OpenCode and Pi ran the identical binaries both times, so they carry the
+like-for-like comparison. Exceptions were counted apart from failures as always: moca 2 × `AgentTimeoutError`,
+OpenCode 7 × `NonZeroAgentExitCodeError` with **5 of them scoring 1.0**.
 
 ## What the harness does not measure
 
