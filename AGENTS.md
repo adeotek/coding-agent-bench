@@ -66,6 +66,16 @@ make -n <target>             # show what a target would run, without running it
   `scripts/audit-watch.sh` re-audits the broken ones (zero tokens; host-limited ones are skipped
   by default because re-running them on the same host just reproduces the failure, `WATCH_ALL=1`
   forces it) and refreshes both lists.
+- **`tasks/`** — the cells this bench owns: `repairs/` (upstream cells whose verifier was broken, fixed),
+  `parked/` (a repair that could not be finished honestly), `authored/` (tasks written here for the failure
+  modes the measured rounds found). Run them with `LOCAL_TASKS=<dir>`; `render_config.py` turns that into a
+  `dataset.path` instead of a registry name, keeps `task_names` filtering, accepts a single task dir as a
+  one-task shorthand, and exempts the cells from the watch-list filter. **Their results are local-only** —
+  never quote them as terminal-bench numbers, and never mix them into a sweep whose other columns came from
+  the registry. A repair is done only when **oracle passes and nop fails** on the local copy
+  (`make local-audit`, zero model tokens); the defect, the evidence and the audit live in
+  `docs/task-repairs.json`. A test may be strict, but it must test the task, not the reference solution's
+  private choices, the verifier's own network access, or an artifact left by the agent's own smoke test.
 - **`scripts/cell_stability.py`** — derives `docs/cell-stability.json` + `docs/tb2-ranking.txt` from the
   job store: per (cell, agent) k/n, Wilson interval and class (`passes`/`fails`/`flaky`/`insufficient`
   under 3 attempts), plus the cells that can actually rank agents (≥2 agents measured ≥3 times, rates
@@ -123,6 +133,7 @@ make -n <target>             # show what a target would run, without running it
   and scores passed/total excluding `skipped`. Secondary metric only: a task is solved or not,
   and it resolves ~3.4× finer than binary on this set (82 tests vs 24 cells).
 - **`Makefile`** — thin wrappers; each target documented with a `## ` comment (that feeds `make help`).
+  `make local-audit` runs the oracle/nop audit of `tasks/` through `scripts/audit-local.sh` (zero tokens).
 - **`results/`** — gitignored output. Treat transcripts and logs as potentially sensitive; never commit.
 
 ## Credentials (how each agent receives its key)
