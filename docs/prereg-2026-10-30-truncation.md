@@ -51,3 +51,25 @@ verifier).
 Numbers come from `scripts/bench_report.py` over `results/jobs/`, never from a run log by hand. Both
 reports (`docs/moca-bench-report.md`, `docs/agents-bench-report.md`) get the result in the same commit as
 the job that produced it, including a negative one.
+
+## Outcome (written after the run — nothing above was edited)
+
+Run: `cab-subset-20261030-122349-959024`, 10 trials, 3 h 01 m wall, **$1.0703**, 2026-10-30.
+
+| metric | the rule above | observed | verdict |
+|---|---|---|---|
+| survival (primary) | ≤ 2/10 → supported (p = 0.023) | **0/10** | supported, p = **0.0007** vs 8/10 |
+| reward (secondary) | ≥ 8/10 for significance | **10/10** | p = **0.0007** vs 2/10 — above the bar, so reportable |
+| truncation still occurs | — | 6/10 trials | the stimulus is unchanged; only the reaction changed |
+| bound hits | defect if > 4/10 | **0/10** | no defect |
+
+Defect checks, all negative: the ceilings escalated as designed (`retry 1 of 3 at 32768`, then 65 536 on the
+same wall), no run ended at the bound, and no truncation landed at the top of the escalation — the highest
+attempt any trial reached was 65 536, well inside the model's 384 000. Eleven rescues across six trials, none
+fatal; the six-rescue run shows the reset working four times over.
+
+The pre-registered reward bar is what makes the 10/10 honest rather than lucky: at ten trials the only
+reportable reward results were "no difference" or "a difference this large", and it is the second. What this
+file cannot say — and the reports do say — is that the solves cost 32 minutes and $0.107 a trial against 5
+minutes and $0.035 for the arm that died in five, so the next constraint is the task's own 3600 s agent cap,
+not the output ceiling.

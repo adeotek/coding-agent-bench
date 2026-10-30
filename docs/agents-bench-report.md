@@ -422,7 +422,7 @@ same task in 45 s the week before. `filter-js` is the other loss.
    assertions cost every agent the same points; they belong in the task audit, not in a
    ranking.
 
-## Truncation — moca's own failure mode, fixed and re-measured (2026-10-28, k=3)
+## Truncation — moca's own failure mode, fixed and re-measured (three arms, 2026-10-28 → 10-30)
 
 The 21-cell screen found a loss mode that is neither capability nor task-side: **moca can put its whole
 per-turn output budget into thinking and return nothing.** On `regex-chess` and
@@ -455,6 +455,27 @@ the wrong half of the problem: in the v0.7.11 failures the two truncations arriv
 truncating turn is often a **large output** — a 404-line file write, a whole module dumped to stdout — not
 runaway thinking. Lowering the effort does nothing for those, and one rescue per run is too few for a task
 that legitimately produces several large turns.
+
+**v0.7.12 finished the job, and the ceiling turned out to be the constraint.** Released 2026-10-30, it
+raises the per-turn ceiling on the retry (`min(model limit, context.reserveTokens) × 2^attempt`, capped at
+the model's own limit — 16 384 by default against 384 000 the model can emit) and allows three rescues per
+run, reset by any tool call. Retested at k=10, pre-registered, one variable (`…-122349-959024`, 3 h 01 m,
+$1.0703):
+
+| measure | v0.7.10 | v0.7.11 | v0.7.12 |
+|---|---|---|---|
+| `regex-chess` solves | 2/10 | 2/10 | **10/10** (p = 0.0007) |
+| trials hitting ≥1 truncation | 8/10 | 9/10 | 6/10 — the stimulus still occurs |
+| runs *ended* by a truncation | 8/10 | 8/10 | **0/10** (p = 0.0007) |
+| rescues taken / fatal | — | 9 / 8 | **11 / 0** |
+| median trial / cost per trial | 5 m / $0.035 | 7 m / $0.034 | **32 m / $0.107** |
+
+The agent was never unable to solve this cell; it was being cut off mid-thought at a ceiling 23× below what
+the model can emit. The honest half of that sentence is the second column of the last row: the solve is
+bought with time and tokens — 32 minutes a trial instead of 5 — and one trial ran long enough to hit the
+task's 3600 s agent cap after completing the work (the verifier scored it 1.0; exceptions and failures are
+different things). The lesson generalises past moca: **before filing a cell as too hard, read the losing
+agent's stop reason** — a truncated turn is a budget running out, not a decision to stop.
 
 Neither cell is in the 12- or 24-task sets, so no number in the tables above changes; per-trial tables are
 in [`moca-bench-report.md`](moca-bench-report.md).
