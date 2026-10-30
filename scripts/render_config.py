@@ -52,7 +52,7 @@ def agents(profile: str) -> list[dict]:
                 "import_path": "agents.moca:Moca",
                 "model_name": zen,
                 "kwargs": {
-                    "version": env("MOCA_VERSION", "v0.7.11"),
+                    "version": env("MOCA_VERSION", "v0.7.12"),
                     "max_steps": env_int("MOCA_MAX_STEPS", 250),
                     # Rendered, not inherited: v0.7.2 changed moca's default
                     # permission mode to `auto`, so the protocol's yolo stance

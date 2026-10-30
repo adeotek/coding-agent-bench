@@ -1,0 +1,30 @@
+# The instrument's noise bar: the eight cells whose verdicts MOVED between two
+# sweeps that ran identical binaries for three of the four agents.
+#
+# Derivation (do not hand-edit; re-run the comparison if a sweep is added):
+#   cab-subset-20261028-154055-3278028  vs  cab-subset-20261026-134414-1158148
+#   restricted to the 23 cells both sweeps ran.
+#     moca        6 flips: dna-assembly, dna-insert, gcode-to-text,
+#                          large-scale-text-editing, overfull-hbox, sanitize-git-repo
+#     opencode    4 flips: configure-git-webserver, extract-elf, gcode-to-text,
+#                          sanitize-git-repo
+#     pi          5 flips: configure-git-webserver, dna-insert, gcode-to-text,
+#                          large-scale-text-editing, sanitize-git-repo
+#     claude-code 2 flips: configure-git-webserver, dna-assembly
+#   Union over the three zen agents = the eight cells below.
+#
+# Why k=3: at n=1 a cell verdict is one draw from that cell's own rate. Three
+# attempts separate "this cell is unanimous for this agent" from "this cell is a
+# coin flip", which is what turns the observed 4-6 flips per sweep into a number
+# with a floor instead of an anecdote.
+#
+# Claude is deliberately NOT in this run: 8 x 3 attempts at ~$0.58/trial is ~$14,
+# four times the whole zen bill, to measure the column that moved least (2 cells).
+configure-git-webserver
+dna-assembly
+dna-insert
+extract-elf
+gcode-to-text
+large-scale-text-editing
+overfull-hbox
+sanitize-git-repo

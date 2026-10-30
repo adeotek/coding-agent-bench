@@ -422,7 +422,7 @@ same task in 45 s the week before. `filter-js` is the other loss.
    assertions cost every agent the same points; they belong in the task audit, not in a
    ranking.
 
-## Truncation — moca's own failure mode, fixed and re-measured (2026-10-28, k=3)
+## Truncation — moca's own failure mode, fixed and re-measured (three arms, 2026-10-28 → 10-30)
 
 The 21-cell screen found a loss mode that is neither capability nor task-side: **moca can put its whole
 per-turn output budget into thinking and return nothing.** On `regex-chess` and
@@ -456,12 +456,87 @@ truncating turn is often a **large output** — a 404-line file write, a whole m
 runaway thinking. Lowering the effort does nothing for those, and one rescue per run is too few for a task
 that legitimately produces several large turns.
 
+**v0.7.12 finished the job, and the ceiling turned out to be the constraint.** Released 2026-10-30, it
+raises the per-turn ceiling on the retry (`min(model limit, context.reserveTokens) × 2^attempt`, capped at
+the model's own limit — 16 384 by default against 384 000 the model can emit) and allows three rescues per
+run, reset by any tool call. Retested at k=10, pre-registered, one variable (`…-122349-959024`, 3 h 01 m,
+$1.0703):
+
+| measure | v0.7.10 | v0.7.11 | v0.7.12 |
+|---|---|---|---|
+| `regex-chess` solves | 2/10 | 2/10 | **10/10** (p = 0.0007) |
+| trials hitting ≥1 truncation | 8/10 | 9/10 | 6/10 — the stimulus still occurs |
+| runs *ended* by a truncation | 8/10 | 8/10 | **0/10** (p = 0.0007) |
+| rescues taken / fatal | — | 9 / 8 | **11 / 0** |
+| median trial / cost per trial | 5 m / $0.035 | 7 m / $0.034 | **32 m / $0.107** |
+
+The agent was never unable to solve this cell; it was being cut off mid-thought at a ceiling 23× below what
+the model can emit. The honest half of that sentence is the second column of the last row: the solve is
+bought with time and tokens — 32 minutes a trial instead of 5 — and one trial ran long enough to hit the
+task's 3600 s agent cap after completing the work (the verifier scored it 1.0; exceptions and failures are
+different things). The lesson generalises past moca: **before filing a cell as too hard, read the losing
+agent's stop reason** — a truncated turn is a budget running out, not a decision to stop.
+
 Neither cell is in the 12- or 24-task sets, so no number in the tables above changes; per-trial tables are
 in [`moca-bench-report.md`](moca-bench-report.md).
 
 **Cross-agent lesson, added:** an empty reply at the output limit is not a model decision to stop — it
 is a budget being exhausted mid-thought. Before filing such a cell as "too hard" or as a capability
 gap, read the losing agent's session for the stop reason.
+
+## The instrument's floor, measured — 8 flapping cells at k=3 (2026-10-30)
+
+Every sweep in this report has been read against a shrug: three of four agents ran byte-identical binaries
+in the 2026-10-26 and 2026-10-28 sweeps and still flipped 4, 5 and 2 of 23 cells, so a 1–3 cell gap could not
+be called a ranking. This run measures why. The **eight cells whose verdicts moved for any zen agent**
+(`docs/tb2-noisebar.txt`, derived from the two sweeps' job stores rather than curated), three zen agents,
+**3 attempts each**, `cab-subset-20261030-180311-1319333`, 72 trials, 4 h 49 m, **$1.9574**.
+
+| cell | moca | opencode | pi |
+|---|---|---|---|
+| `configure-git-webserver` | 0/3 | 0/3 | 0/3 |
+| `dna-assembly` | 0/3 | **1/3** | **2/3** |
+| `dna-insert` | **1/3** | 3/3 | **2/3** |
+| `extract-elf` | 3/3 | 3/3 | 3/3 |
+| `gcode-to-text` | 0/3 | **1/3** | **1/3** |
+| `large-scale-text-editing` | **2/3** | **2/3** | 0/3 |
+| `overfull-hbox` | 3/3 | 3/3 | 3/3 |
+| `sanitize-git-repo` | **2/3** | 3/3 | **2/3** |
+| **tally** | **11/24** | **16/24** | **13/24** |
+
+**Ten of the 24 (cell, agent) pairs are split at three attempts** — not "near-certain", split: `dna-assembly`
+for OpenCode at 1/3, `dna-insert` for moca 1/3 and Pi 2/3, `gcode-to-text` 1/3 for two agents,
+`large-scale-text-editing` 2/3 for two, `sanitize-git-repo` 2/3 for two. Half of the cells this bench argues
+about are coin flips for at least one agent, while `overfull-hbox` and `extract-elf` are unanimous passes for
+all three and `configure-git-webserver` a unanimous fail.
+
+**The flips are mostly arithmetic.** From each pair's measured rate `p`, two independent one-attempt runs
+disagree with probability `2p(1−p)`; summed over these eight cells that predicts **1.3 flips for moca, 1.3 for
+OpenCode, 1.8 for Pi**. The two sweeps saw 6, 4 and 5 across 23 cells — the same order of magnitude, produced
+by cells whose rates sit near one-half. Nothing mysterious is happening: a one-attempt verdict on a middling
+cell flips half the time by construction.
+
+**But "flip" is not one phenomenon, and the difference matters.** Of the 15 zen flips between the two sweeps,
+**7** land on a pair that is split at k=3 — sampling noise, exactly as modelled — and **8** land on a pair
+where three attempts were unanimous: 5 unanimous fails and 3 unanimous passes. Those are not explained by the
+rate alone. They are drift (a verifier's own behaviour, a cell that rots between rounds, the agent's leftover
+artifacts) or a rate low enough that three draws cannot see it — 0/3 bounds a rate only at **≤63 %**, so
+"unanimous" at k=3 is not "never passes". `configure-git-webserver` is the clean example of the first kind: it
+passed for OpenCode in one sweep and for Pi in the other, and now fails 3/3 for all three agents. It is the
+cell whose verifier accepts a leftover artifact, so its verdict tracks litter, not capability.
+
+**What this buys the next sweep.** A one-attempt cell verdict is quotable for a pair that is unanimous at k=3
+and worth nothing for the ten split ones; the aggregate carries ±2–3 cells per agent, which is the swing
+actually observed. One-attempt sweeps therefore remain useful for "did anything break" and cannot, at any k
+that fits this budget, resolve a 1–3 cell ordering. Ranking needs the paired multi-attempt design — and note
+its price: eight cells at three attempts cost **$1.96 and 4 h 49 m**, more wall clock than a 23-cell one-attempt
+sweep for a third of the cells.
+
+Exceptions, counted separately from failures as always: moca 2 × `AgentTimeoutError`; OpenCode 7 ×
+`NonZeroAgentExitCodeError`, of which **5 scored 1.0** — the known "exits 1 after clean work" quirk, and the
+reason this report never equates an exception with a loss. moca's column runs v0.7.12 rather than the v0.7.11
+the flips were recorded on (its only change is the truncated-turn path), so OpenCode and Pi carry the
+like-for-like comparison.
 
 ## Task audit — the cells themselves (2026-10-26/27, zero tokens)
 
@@ -502,10 +577,12 @@ signal left is what the pass costs.
 
 ## What would make this report current
 
-1. **Stop repeating the sweep at n=1.** It has now been run three times, and each repeat moves 4–6
-   cells per agent *on unchanged binaries* — the ordering (Claude first, three zen agents level) is
-   stable, the per-agent scores are not. The next instrument that would actually answer a question is
-   k=3 on the ~8 cells that flipped in this round, not a fourth one-attempt sweep.
+1. **Stop repeating the sweep at n=1 — done, and the answer is measured.** Three repeats moved 4–6 cells
+   per agent on unchanged binaries, so the eight cells that flipped were run at k=3 (`…180311-1319333`,
+   $1.96): **10 of 24 (cell, agent) pairs are split at three attempts**, and the sweep-level movement is
+   what those rates must produce. A one-attempt verdict is quotable only for a pair that is unanimous at
+   k=3; the aggregate carries ±2–3 cells per agent. Ranking three agents needs the paired multi-attempt
+   design, and its price is visible: eight cells at k=3 cost more wall clock than a 23-cell n=1 sweep.
 2. **Read the task's verifier before believing a cell.** `configure-git-webserver` looked like
    moca's only structural defect until `tests/verify.sh` was read: it asserts a leftover artifact,
    not the behaviour, and Claude passed it once with no `sshd` installed. The remaining candidate

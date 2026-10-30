@@ -168,6 +168,7 @@ models are used where the question is "is this the model or the agent?".
 | 10-25 | v0.7.10 | mailman, custom-memory, cobol, filter-js × 3 @ 250 | **mailman 3/3**, **custom-memory 3/3**, **cobol 3/3**; filter-js **0/3 scored** (2 × verifier timeout, 1 fail) | `…033114-1747413` | $0.370 |
 | 10-25 | v0.7.10 | the 24-set's five losses + `log-summary` canary × 3 @ 250 | **configure-git 0/3**, **dna-assembly 0/3**, **large-scale 1/3**, **sanitize-git 1/3**, **overfull-hbox 3/3**; canary 3/3 | `…221348-209862` | $0.263 |
 | 10-25 | v0.7.4 | build-cython, extract-elf, log-summary, custom-memory × 3 @ 250, glm | **extract-elf 3/3**, **log-summary 3/3**, build-cython **2/3**, custom-memory **2/3** (one attempt burned 246 turns / 12.8 M tokens / $0.4348 and still passed) | `…165250-3205787` | $0.821 |
+| 10-30 | v0.7.12 | the 8 cells that flipped between sweeps × 3, three zen agents (noise bar) | **moca 11/24** — 3 pairs split at k=3 (`dna-insert` 1/3, `large-scale-text-editing` 2/3, `sanitize-git-repo` 2/3) | `…180311-1319333` | $1.957 (all three agents) |
 
 What the cell runs settled, and the rules that came out of them:
 
@@ -207,6 +208,42 @@ What the cell runs settled, and the rules that came out of them:
   (no verdict) and one clean fail on `test_clean_html_unchanged`, the byte-exact assertion.
   Seventeen attempts across four agents and two models have produced zero passes. It is a
   task-side cell, and a flaky one; the scoreboard should not carry it in the denominator.
+
+### The instrument's floor — 8 flapping cells, three attempts each (2026-10-30, `cab-subset-20261030-180311-1319333`)
+
+The two 23-cell sweeps moved 6, 4 and 5 cells per zen agent on byte-identical binaries, which is why this
+report refuses to rank agents on one attempt. This run measures why: the eight cells whose verdicts moved
+for any zen agent (`docs/tb2-noisebar.txt`), three agents, three attempts, 72 trials, 4 h 49 m, $1.9574.
+The cross-agent reading is in [`agents-bench-report.md`](agents-bench-report.md); the moca column, on the
+current pin:
+
+| cell | moca, k=3 | between the two sweeps moca went |
+|---|---|---|
+| `dna-assembly` | 0/3 | fail → pass |
+| `dna-insert` | **1/3** | pass → fail |
+| `extract-elf` | 3/3 | unchanged |
+| `gcode-to-text` | 0/3 | fail → pass |
+| `large-scale-text-editing` | **2/3** | pass → fail |
+| `overfull-hbox` | 3/3 | pass → fail |
+| `sanitize-git-repo` | **2/3** | fail → pass |
+| `configure-git-webserver` | 0/3 | unchanged |
+
+Three of the six cells moca flipped on are split at three attempts (`dna-insert`, `large-scale-text-editing`,
+`sanitize-git-repo`): for those, "moca passes this cell" was always a coin flip with a verdict attached. The
+other three are unanimous here — `overfull-hbox` 3/3, `dna-assembly` and `gcode-to-text` 0/3 — so their
+movement is drift rather than sampling noise, and at 0/3 a cell's rate is only bounded at ≤63 %, which is
+exactly why a unanimous k=3 is not a "never passes" verdict either.
+
+The arithmetic is worth stating: from moca's own measured rates on these eight cells, two independent
+one-attempt runs are expected to disagree on **1.3** cells. The sweep-level movement (6 of 23) is the same
+phenomenon at three times the cell count. Nothing about moca's releases is required to explain it.
+
+moca's 11/24 here against OpenCode's 16/24 and Pi's 13/24 is **descriptive only** — eight cells cannot rank
+three agents, and moca is the one column not like-for-like in this job: it ran v0.7.12 (the pin) while the
+flips were recorded at v0.7.11, and the only thing separating those releases is the truncated-turn path
+(measured separately above). OpenCode and Pi ran the identical binaries both times, so they carry the
+like-for-like comparison. Exceptions were counted apart from failures as always: moca 2 × `AgentTimeoutError`,
+OpenCode 7 × `NonZeroAgentExitCodeError` with **5 of them scoring 1.0**.
 
 ## What the harness does not measure
 
@@ -478,14 +515,24 @@ the audit is now a gate to re-run before every round, not a one-off. Full eviden
 
 ## Summary — where the current pin stands, against every earlier release
 
-**The pin is v0.7.11 and the 12-task numbers below are still v0.7.10's.** Nothing in v0.7.11 touches
-the subset: the release is the truncated-turn retry, measured on the two cells that motivated it
-(retest above — `regex-chess` 0/3 → 2/3 against the v0.7.10 control,
-`adaptive-rejection-sampler` unchanged at 0/3, and 6/6 trials truncated at least once in *both* arms). What this pin has actually been measured on: the 23-cell four-agent sweep below (**18/23**, $0.0296 per
-solve, level with OpenCode and Pi, 2 cells behind Claude at 25× the price) and the truncation arms — where
-the *mechanism* is solid (a truncation ended 6/6 runs at v0.7.10 and 1/6 at v0.7.11, p = 0.015) but the
-*reward* claim is not: k=10 on `regex-chess` gives 2/10 against 2/10, so the k=3 "one cell moved" reading
-was noise and has been retracted in place. The 12-task numbers below are still v0.7.10's.
+**The pin is v0.7.12 and the 12-task numbers below are still v0.7.10's.** v0.7.12 (2026-10-30) raises the
+per-turn output ceiling on the retry after a truncated turn — `min(model limit, context.reserveTokens) ×
+2^attempt`, capped at the model's own limit — and allows three rescues per run, reset by any tool call.
+Measured at k=10 on the cell that motivated it, against both earlier releases on the same cell:
+
+| release | `regex-chess`, k=10 | runs ended by a truncation | median trial | cost/10 trials |
+|---|---|---|---|---|
+| v0.7.10 | 2/10 | 8/10 | 5 m | $0.3544 |
+| v0.7.11 | 2/10 | 8/10 (9 trials truncated, one rescued) | 7 m | $0.3382 |
+| **v0.7.12** | **10/10** (p = 0.0007) | **0/10** (p = 0.0007) | **32 m** | $1.0703 |
+
+The mechanism is now measured end to end: truncation still occurs (6/10 trials), it just never ends a run —
+eleven rescues, zero bound hits, one trial truncating six times across a single run and still solving. The
+price is named in the same breath: **32 minutes and $0.107 per attempt against 5 minutes and $0.035**, the
+same model finally allowed to finish, one trial running so long it hit the task's 3600 s agent cap after the
+work was done. Nothing else has been re-measured on this pin — the 23-cell four-agent sweep below is
+v0.7.11's (18/23) and the 12-task numbers are v0.7.10's (11/12), both unchanged by a release whose only
+behaviour change is the truncated-turn path.
 
 **Accuracy.** **11/12** on the 12-task subset, the best any release has scored there: one cell
 above the previous top (v0.6.1 and v0.6.4, 10/12) and three above the last measured round
@@ -510,7 +557,7 @@ cleaning up after a successful end-to-end test. The only candidate left is
 report's history turned out to be noise or a verifier artefact (the budget's regressions, the
 literal-constraint class, `dna-assembly` as a capability gap, `configure-git-webserver` as a
 defect) — every one was caught before a fix was written, which is the standard this report now
-holds itself to. **No moca code change is currently justified by the 24-task data.** The one change since (v0.7.11's truncation retry) came from the 21-cell screen, not from this set — and its retest moved one of the two cells it was aimed at.
+holds itself to. **No moca code change is currently justified by the 24-task data.** The two changes since came from the 21-cell screen, not from this set: v0.7.11's truncation retry moved neither cell at k=10, and v0.7.12's raised ceiling turned `regex-chess` from 2/10 into 10/10.
 
 ### What the 21-cell screen adds (2026-10-27 — a screen, not a release round)
 
@@ -600,11 +647,56 @@ appear at a truncation point. The screen's diagnosis — runaway *thinking* — 
 half is runaway *output*, and a lowered effort does nothing for a 400-line write. The bound then ends the
 run, because one rescue per run is not enough for a task that legitimately produces several large turns.
 
-Next moca action, if this cell is worth another round: the rescue nudge should direct the model to **split
-large outputs** (write files in chunks, read ranges instead of whole files), and the bound should allow
-more than one rescue per run. `adaptive-rejection-sampler` is 0/3 in both arms and its v0.7.11 attempts did
-27–68 tool calls before failing: truncation is not what blocks that cell, and OpenCode never passed it
-either (8/9 tests before its own timeout). Treat it as a both-fail cell on this model.
+That finding went upstream as **v0.7.12** (adeotek/moca#78, released 2026-10-30): the rescue now *raises*
+the per-turn ceiling instead of only lowering the effort (`min(model limit, context.reserveTokens) ×
+2^attempt`, capped at the model's own limit — 16 384 by default, while `deepseek-v4.1-flash` can emit
+384 000), and allows **three rescues per run, reset by any tool call**.
+
+### Third arm — v0.7.12, the ceiling was the constraint (2026-10-30, `cab-subset-20261030-122349-959024`)
+
+Pre-registered before the run in [`prereg-2026-10-30-truncation.md`](prereg-2026-10-30-truncation.md):
+survival primary, reward secondary and explicitly undecidable at n=10. Ten attempts, one variable (the
+release), $1.0703, 3 h 01 m wall:
+
+| attempt | reward | tool calls | truncations | rescues | bound hit | output tok | cost | duration | end |
+|---|---|---|---|---|---|---|---|---|---|
+| `uPafmYk` | **1.0** | 50 | — | — | — | 40 562 | $0.0615 | 23 m | solved |
+| `FaDEGWn` | **1.0** | 38 | 1 | 1 | — | 75 337 | $0.0655 | 19 m 46 s | solved after a rescue |
+| `GgScW3P` | **1.0** | 48 | 1 | 1 | — | 87 157 | $0.0776 | 24 m 34 s | solved after a rescue |
+| `puutjZF` | **1.0** | 87 | — | — | — | 112 478 | $0.1014 | 23 m 55 s | solved |
+| `YGAcjz8` | **1.0** | 84 | 1 | 1 | — | 105 821 | $0.1025 | 53 m 31 s | solved after a rescue |
+| `KJcitHN` | **1.0** | 68 | 1 | 1 | — | 111 513 | $0.1061 | 37 m 33 s | solved after a rescue |
+| `H7wqYoo` | **1.0** | 65 | — | — | — | 76 942 | $0.1063 | 31 m 37 s | solved |
+| `CD9tpdh` | **1.0** | 87 | 1 | 1 | — | 111 416 | $0.1162 | 32 m 37 s | solved after a rescue |
+| `QUFcM23` | **1.0** | 74 | — | — | — | 147 688 | $0.1226 | 36 m 13 s | solved |
+| `ta2AG6d` | **1.0** | 73 | 6 | 6 | — | 259 771 | $0.2106 | 65 m 01 s | solved; agent phase hit the 3600 s cap after the work was done |
+
+| measure | v0.7.10 | v0.7.11 | v0.7.12 |
+|---|---|---|---|
+| `regex-chess` solves, k=10 | 2/10 | 2/10 | **10/10** (Fisher p = **0.0007** vs either arm) |
+| trials hitting ≥1 truncation | 8/10 | 9/10 | 6/10 — **the stimulus still occurs** |
+| rescues taken | — (none exist) | 9, of which 8 ended the run | 11, **none fatal** |
+| runs *ended* by a truncation | 8/10 | 8/10 | **0/10** (p = **0.0007**) |
+| output tokens per trial | 32 847–76 477 | 32 850–54 249 | 40 562–259 771 |
+| cost for ten trials | $0.3544 | $0.3382 | $1.0703 |
+| median trial duration | 5 m | 7 m | **32 m** |
+
+**The mechanism is now measured end to end.** Truncation still happens — six of ten trials hit at least
+one — and not one of them ends the run: eleven rescues, zero bound hits. The clearest evidence that the count must reset on progress is
+`ta2AG6d`: it truncated six times and still solved, and its log shows `retry 1 of 3 at 32768 output tokens`
+**four separate times** — each one after real work had reset the counter — then two escalations to 65 536.
+Under v0.7.11's single-rescue rule that run would have died at the first pair.
+
+**What the solve actually costs, stated plainly.** The ten trials took 3 h 01 m of wall
+time and $1.07 against 38 m and $0.35 for the dead v0.7.10 arm: the same model now spends 20–65 minutes and up to 260 k
+output tokens per attempt instead of dying in five. This is not a free win — it is the difference between
+an agent that is cut off mid-thought and one that is allowed to finish, and the new binding constraint is
+the task's own 3600 s agent timeout (`ta2AG6d` hit it after completing the work; the verifier still scored
+1.0, which is why exceptions and failures are counted separately here).
+
+`adaptive-rejection-sampler` is not part of this arm. It is 0/3 on both earlier releases with 27–68 tool
+calls of real work before failing, and OpenCode never passed it either (8/9 tests before its own timeout),
+so it stays a both-fail cell on this model — a different problem from this one.
 
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set
