@@ -155,6 +155,33 @@ def build(profile: str) -> dict:
         "name": env("TB_DATASET", "terminal-bench"),
         "version": env("TB_VERSION", "2.0"),
     }
+    # LOCAL_TASKS points the dataset at a directory of task dirs on disk instead of the remote
+    # registry — that is how a repaired cell (tasks/<name>/, verifier fixed, deviation recorded in
+    # docs/task-repairs.json) gets run. Results from these cells are LOCAL-ONLY: they are not the
+    # upstream task and must never be quoted as a terminal-bench number.
+    local_tasks = env("LOCAL_TASKS")
+    if local_tasks:
+        local_path = Path(local_tasks)
+        if not local_path.is_absolute():
+            local_path = REPO / local_path
+        if not local_path.is_dir():
+            sys.exit(f"render_config: LOCAL_TASKS={local_tasks} is not a directory")
+        # A single task dir is a convenience: point at the task, get a one-task dataset.
+        single = None
+        if (local_path / "task.toml").is_file():
+            single = local_path.name
+            local_path = local_path.parent
+        found = sorted(p.name for p in local_path.iterdir() if (p / "task.toml").is_file())
+        if not found:
+            sys.exit(f"render_config: LOCAL_TASKS={local_tasks} holds no task dirs (no */task.toml)")
+        dataset = {"path": str(local_path)}
+        if single:
+            dataset["task_names"] = [single]
+        print(
+            f"render_config: LOCAL dataset {local_path} -> {len(found)} task(s): {', '.join(found)}; "
+            "these cells are repaired or authored copies, not terminal-bench tasks",
+            file=sys.stderr,
+        )
     task_file = env("TASK_FILE")
     if task_file:
         path = Path(task_file)
@@ -225,7 +252,7 @@ def drop_defective(names: list[str], profile: str) -> list[str]:
     and by name, so it is visible in the run log and in the rendered config. The audit
     profile is exempt: finding these cells is its whole job.
     """
-    if profile == "audit" or os.environ.get("ALLOW_DEFECTIVE") == "1":
+    if profile == "audit" or os.environ.get("ALLOW_DEFECTIVE") == "1" or os.environ.get("LOCAL_TASKS"):
         return names
     bad = {n: defective_cells()[n] for n in names if n in defective_cells()}
     if not bad:

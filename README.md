@@ -253,6 +253,42 @@ below the instrument's floor at one attempt, and the aggregate carries ±2–3 c
 needs the paired multi-attempt design on the ranking cells — and it costs wall clock: eight cells at three
 attempts took 4 h 49 m, more than a 23-cell single-attempt sweep.
 
+## Repaired and authored tasks (`tasks/`, `LOCAL_TASKS`)
+
+terminal-bench 2.0 is saturated for these agents and three of its cells have broken verifiers, so the bench
+can run cells it owns:
+
+```bash
+LOCAL_TASKS=tasks/authored python3 scripts/render_config.py audit -o /tmp/a.json
+harbor run --config /tmp/a.json -y --job-name cab-audit-authored
+```
+
+`LOCAL_TASKS` replaces the registry dataset with `dataset.path` — Harbor builds (or pulls) each task's own
+image, `task_names` still filters, pointing at a single task directory is a one-task shorthand, and the
+watch-list filter is bypassed (a repaired cell usually sits on it). Both directories are **local-only**:
+never quote their numbers as terminal-bench scores.
+
+- **`tasks/repairs/`** — copies of upstream cells whose verifier was broken, with the fix and the evidence
+  in [`docs/task-repairs.json`](docs/task-repairs.json). A repair is done only when **oracle passes and nop
+  fails** on the local copy. `configure-git-webserver` (hardcoded credentials the instruction never stated,
+  one string-match assertion) and `build-cython-ext` (cloned GitHub at verification time and asserted
+  upstream's suite) are repaired and passing that audit. `filter-js-from-html` is **parked** with its
+  evidence: closing its fail-open paths made the reference solution hang headless Chrome, and a static
+  oracle over-fails — neither is an honest oracle, so it stays task-side. It lives in `tasks/parked/`
+  rather than `tasks/repairs/` so `make local-audit` stays all-green and nobody mistakes it for a working cell.
+- **`tasks/authored/`** — five tasks written for the modes the measured rounds found: `idempotent-migrations`,
+  `fix-flaky-suite` (the suite must still fail on injected bugs), `bisect-culprit` (asserted by commit SHA),
+  `csv-normalizer`, `safe-cleanup` (dry-run default, symlinks skipped, `/` refused). Each is oracle-green and
+  nop-red.
+
+The audit costs no model tokens (Harbor's own `oracle`/`nop` agents), so it is the first thing to run after
+touching a test:
+
+```bash
+make local-audit                       # tasks/repairs + tasks/authored
+LOCAL_TASKS=tasks/authored/csv-normalizer ./scripts/audit-local.sh
+```
+
 ## Troubleshooting
 
 | Symptom | Fix |
