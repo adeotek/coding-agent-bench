@@ -72,8 +72,9 @@ that accepts a leftover artifact does.
 | Dataset | `terminal-bench@2.0`. Two instruments: the fixed 12-task subset ([`docs/tb2-subset-12.txt`](tb2-subset-12.txt), all rows before 2026-10-25 17:40) and the 24-task comparison set ([`docs/tb2-subset-24.txt`](tb2-subset-24.txt) — those 12 plus 12 cells chosen from the screening sweep). The 24-task run is the current baseline |
 | Models | moca / OpenCode / Pi: `opencode-go/deepseek-v4.1-flash` from 2026-10-24 (`opencode-go/glm-5.3-flash` was the default before — the rows below ran glm). Claude Code: `anthropic/claude-sonnet-5` — it cannot use a zen key, by design |
 | Permissive modes | moca `--mode yolo`, OpenCode `--auto`, Claude Code `bypassPermissions` |
-| Attempts | 1 per task × agent, `--max-retries 1`, `N_CONCURRENT=2` |
+| Attempts | 1 per task × agent for every sweep before 2026-10-30, `--max-retries 1`, `N_CONCURRENT=2`. **3 attempts is the default from 2026-10-30** — a per-cell verdict from one draw is one sample of that cell's rate (`docs/cell-stability.json`) |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
+| Reporting rule | a cell is quoted as `k/n` with its Wilson interval, and only from a run with ≥3 attempts per cell; `bench_report.py matrix` refuses a single-draw job (exit 2, `--allow-n1` for forensics). Aggregates carry a clustered bootstrap CI. Ten of 24 (cell, agent) pairs were still split at k=3, so a 1–3 cell gap at one attempt is not a ranking |
 
 ## Headline — 24-task set, two identical runs (192 trials) — superseded by the 2026-10-28 sweep above
 

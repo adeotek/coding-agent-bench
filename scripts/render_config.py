@@ -122,12 +122,21 @@ def shard_slice(names: list[str], shard: tuple[int, int]) -> list[str]:
     start = (k - 1) * size
     return names[start : start + size]
 
+# A comparison profile buys three attempts per cell by default. Why: a cell's
+# verdict at one attempt is a single draw from that cell's own rate, and the
+# measured swing on unchanged binaries is 4-6 cells per 23-cell sweep — with 10
+# of 24 (cell, agent) pairs still split at three attempts (docs/cell-stability.json).
+# An audit runs the oracle/nop pair, which have no sampling variance worth
+# repeating; a smoke is a wiring check. Both stay at one.
+DEFAULT_ATTEMPTS = {"smoke": 1, "audit": 1, "subset": 3, "full": 3}
+
+
 def build(profile: str) -> dict:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     cfg: dict = {
         "job_name": f"cab-{profile}-{stamp}",
         "jobs_dir": env("JOBS_DIR", "results/jobs"),
-        "n_attempts": env_int("N_ATTEMPTS", 1),
+        "n_attempts": env_int("N_ATTEMPTS", DEFAULT_ATTEMPTS[profile]),
         "n_concurrent_trials": env_int("N_CONCURRENT", 2),
         "environment": {"type": "docker"},
         "agents": agents(profile),
@@ -135,6 +144,13 @@ def build(profile: str) -> dict:
     if profile == "smoke":
         cfg["tasks"] = [{"name": "hello-world/hello-world"}]
         return cfg
+    if profile not in ("smoke", "audit") and cfg["n_attempts"] < 2:
+        print(
+            "render_config: N_ATTEMPTS=1 — every per-cell result in this job is a single draw.\n"
+            "  `bench_report.py matrix` will refuse it and `summary` marks it; a cell verdict\n"
+            "  needs k>=3 (measured: 10 of 24 pairs split at k=3, docs/cell-stability.json).",
+            file=sys.stderr,
+        )
     dataset: dict = {
         "name": env("TB_DATASET", "terminal-bench"),
         "version": env("TB_VERSION", "2.0"),

@@ -1,0 +1,1820 @@
+{
+  "cells": {
+    "adaptive-rejection-sampler": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.0,
+            0.7935
+          ],
+          "class": "insufficient",
+          "k": 0,
+          "n": 1,
+          "rate": 0.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "break-filter-js-from-html": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "build-cython-ext": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5101,
+            1.0
+          ],
+          "class": "passes",
+          "k": 4,
+          "n": 4,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5101,
+            1.0
+          ],
+          "class": "passes",
+          "k": 4,
+          "n": 4,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5101,
+            1.0
+          ],
+          "class": "passes",
+          "k": 4,
+          "n": 4,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": true
+    },
+    "build-pov-ray": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "caffe-cifar-10": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.0,
+            0.7935
+          ],
+          "class": "insufficient",
+          "k": 0,
+          "n": 1,
+          "rate": 0.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "chess-best-move": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "circuit-fibsqrt": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "cobol-modernization": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "code-from-image": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "compile-compcert": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "configure-git-webserver": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.2077,
+            0.9385
+          ],
+          "class": "flaky",
+          "k": 2,
+          "n": 3,
+          "rate": 0.6667,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.0,
+            0.5615
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 3,
+          "rate": 0.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.0301,
+            0.5635
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 6,
+          "rate": 0.1667,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.0301,
+            0.5635
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 6,
+          "rate": 0.1667,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": false,
+      "spread": 0.6667,
+      "task_side": true
+    },
+    "crack-7z-hash": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "custom-memory-heap-crash": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "db-wal-recovery": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.2307,
+            0.8824
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 5,
+          "rate": 0.6,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": true,
+      "spread": 0.4,
+      "task_side": false
+    },
+    "dna-assembly": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.0615,
+            0.7923
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 3,
+          "rate": 0.3333,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.0,
+            0.5615
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 3,
+          "rate": 0.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.0301,
+            0.5635
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 6,
+          "rate": 0.1667,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.1876,
+            0.8124
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 6,
+          "rate": 0.5,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": true,
+      "spread": 0.5,
+      "task_side": false
+    },
+    "dna-insert": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.2077,
+            0.9385
+          ],
+          "class": "flaky",
+          "k": 2,
+          "n": 3,
+          "rate": 0.6667,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.0615,
+            0.7923
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 3,
+          "rate": 0.3333,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.6097,
+            1.0
+          ],
+          "class": "passes",
+          "k": 6,
+          "n": 6,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.3,
+            0.9032
+          ],
+          "class": "flaky",
+          "k": 4,
+          "n": 6,
+          "rate": 0.6667,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": true,
+      "spread": 0.6667,
+      "task_side": false
+    },
+    "extract-elf": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.3755,
+            0.9638
+          ],
+          "class": "flaky",
+          "k": 4,
+          "n": 5,
+          "rate": 0.8,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5291,
+            0.9776
+          ],
+          "class": "flaky",
+          "k": 7,
+          "n": 8,
+          "rate": 0.875,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.6756,
+            1.0
+          ],
+          "class": "passes",
+          "k": 8,
+          "n": 8,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": false,
+      "spread": 0.2,
+      "task_side": false
+    },
+    "filter-js-from-html": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.0,
+            0.4345
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 5,
+          "rate": 0.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.0,
+            0.4345
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 5,
+          "rate": 0.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.0,
+            0.4345
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 5,
+          "rate": 0.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": true
+    },
+    "fix-git": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.3755,
+            0.9638
+          ],
+          "class": "flaky",
+          "k": 4,
+          "n": 5,
+          "rate": 0.8,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.2,
+      "task_side": false
+    },
+    "fix-ocaml-gc": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "gcode-to-text": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.0,
+            0.5615
+          ],
+          "class": "fails",
+          "k": 0,
+          "n": 3,
+          "rate": 0.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.1876,
+            0.8124
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 6,
+          "rate": 0.5,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.1876,
+            0.8124
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 6,
+          "rate": 0.5,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": true,
+      "spread": 1.0,
+      "task_side": false
+    },
+    "git-multibranch": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "hello-world/hello-world": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "kv-store-grpc": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.3755,
+            0.9638
+          ],
+          "class": "flaky",
+          "k": 4,
+          "n": 5,
+          "rate": 0.8,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.2,
+      "task_side": false
+    },
+    "large-scale-text-editing": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.2077,
+            0.9385
+          ],
+          "class": "flaky",
+          "k": 2,
+          "n": 3,
+          "rate": 0.6667,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.1876,
+            0.8124
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 6,
+          "rate": 0.5,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.0301,
+            0.5635
+          ],
+          "class": "flaky",
+          "k": 1,
+          "n": 6,
+          "rate": 0.1667,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": true,
+      "spread": 0.8333,
+      "task_side": false
+    },
+    "largest-eigenval": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "log-summary-date-ranges": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.6457,
+            1.0
+          ],
+          "class": "passes",
+          "k": 7,
+          "n": 7,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.6457,
+            1.0
+          ],
+          "class": "passes",
+          "k": 7,
+          "n": 7,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.6457,
+            1.0
+          ],
+          "class": "passes",
+          "k": 7,
+          "n": 7,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "mailman": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "make-mips-interpreter": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "model-extraction-relu-logits": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "multi-source-data-merger": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "nginx-request-logging": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.5655,
+            1.0
+          ],
+          "class": "passes",
+          "k": 5,
+          "n": 5,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "overfull-hbox": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4365,
+            0.9699
+          ],
+          "class": "flaky",
+          "k": 5,
+          "n": 6,
+          "rate": 0.8333,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.6097,
+            1.0
+          ],
+          "class": "passes",
+          "k": 6,
+          "n": 6,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": false,
+      "spread": 0.1667,
+      "task_side": false
+    },
+    "password-recovery": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 3,
+      "ranking": false,
+      "spread": 0.0,
+      "task_side": false
+    },
+    "path-tracing": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "path-tracing-reverse": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "polyglot-c-py": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "polyglot-rust-c": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "portfolio-optimization": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "raman-fitting": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "regex-chess": {
+      "agents": {
+        "moca": {
+          "ci": [
+            0.7225,
+            1.0
+          ],
+          "class": "passes",
+          "k": 10,
+          "n": 10,
+          "rate": 1.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 1,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "sanitize-git-repo": {
+      "agents": {
+        "claude-code": {
+          "ci": [
+            0.4385,
+            1.0
+          ],
+          "class": "passes",
+          "k": 3,
+          "n": 3,
+          "rate": 1.0,
+          "versions": [
+            "2.1.310"
+          ]
+        },
+        "moca": {
+          "ci": [
+            0.2077,
+            0.9385
+          ],
+          "class": "flaky",
+          "k": 2,
+          "n": 3,
+          "rate": 0.6667,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.4365,
+            0.9699
+          ],
+          "class": "flaky",
+          "k": 5,
+          "n": 6,
+          "rate": 0.8333,
+          "versions": [
+            "2.1.4"
+          ]
+        },
+        "pi": {
+          "ci": [
+            0.1876,
+            0.8124
+          ],
+          "class": "flaky",
+          "k": 3,
+          "n": 6,
+          "rate": 0.5,
+          "versions": [
+            "1.4.0"
+          ]
+        }
+      },
+      "measured_agents": 4,
+      "ranking": true,
+      "spread": 0.5,
+      "task_side": false
+    },
+    "schemelike-metacircular-eval": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "torch-pipeline-parallelism": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "winning-avg-corewars": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    },
+    "write-compressor": {
+      "agents": {
+        "opencode": {
+          "ci": [
+            0.2065,
+            1.0
+          ],
+          "class": "insufficient",
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "versions": [
+            "2.1.4"
+          ]
+        }
+      },
+      "measured_agents": 0,
+      "ranking": false,
+      "spread": null,
+      "task_side": false
+    }
+  },
+  "generated_from": {
+    "current_version": {
+      "claude-code": "2.1.310",
+      "moca": "v0.7.12",
+      "opencode": "2.1.4",
+      "pi": "1.4.0"
+    },
+    "jobs": [
+      "cab-audit-20261026-232802-2949383",
+      "cab-audit-20261026-233353-3009061",
+      "cab-audit-20261026-233417-3014135",
+      "cab-audit-20261026-233837-3076152",
+      "cab-audit-20261026-234630-3142439",
+      "cab-audit-20261027-000631-3263188",
+      "cab-audit-20261027-010900-12794",
+      "cab-audit-20261027-011816-43161",
+      "cab-audit-20261027-012135-64726",
+      "cab-audit-20261027-012428-87754",
+      "cab-audit-20261027-012630-98220",
+      "cab-audit-20261027-013205-131040",
+      "cab-audit-20261027-014226-145188",
+      "cab-audit-20261027-014246-145939",
+      "cab-audit-20261027-014741-160697",
+      "cab-audit-20261027-015352-175488",
+      "cab-audit-20261027-015714-186988",
+      "cab-smoke-20261010-211446",
+      "cab-smoke-20261010-211659",
+      "cab-smoke-20261011-003746",
+      "cab-smoke-20261011-133940",
+      "cab-smoke-20261011-134445",
+      "cab-smoke-20261016-003933",
+      "cab-smoke-20261022-143747-1087950",
+      "cab-smoke-20261025-013651-1277154",
+      "cab-subset-20261011-134651",
+      "cab-subset-20261016-004433",
+      "cab-subset-20261016-135314",
+      "cab-subset-20261017-002541",
+      "cab-subset-20261017-010736",
+      "cab-subset-20261017-011702",
+      "cab-subset-20261017-011759",
+      "cab-subset-20261017-011858",
+      "cab-subset-20261017-140708",
+      "cab-subset-20261017-191809",
+      "cab-subset-20261017-230714",
+      "cab-subset-20261018-004739",
+      "cab-subset-20261018-014310",
+      "cab-subset-20261018-112017",
+      "cab-subset-20261018-114408",
+      "cab-subset-20261018-124841",
+      "cab-subset-20261018-140553",
+      "cab-subset-20261018-141549",
+      "cab-subset-20261022-143907-1093976",
+      "cab-subset-20261022-155632-1217193",
+      "cab-subset-20261022-155652-1219888",
+      "cab-subset-20261025-014057-1313816",
+      "cab-subset-20261025-033114-1747413",
+      "cab-subset-20261025-100949-2263993",
+      "cab-subset-20261025-134524-2830293",
+      "cab-subset-20261025-135510-2864359",
+      "cab-subset-20261025-141521-2919547",
+      "cab-subset-20261025-144052-3000856",
+      "cab-subset-20261025-154917-3107095",
+      "cab-subset-20261025-165250-3205787",
+      "cab-subset-20261025-174057-3299781",
+      "cab-subset-20261025-221348-209862",
+      "cab-subset-20261026-134414-1158148",
+      "cab-subset-20261026-223315-2788002",
+      "cab-subset-20261026-224115-2803529",
+      "cab-subset-20261026-230927-2862150",
+      "cab-subset-20261027-105352-727505",
+      "cab-subset-20261028-103325-2855858",
+      "cab-subset-20261028-114403-2964679",
+      "cab-subset-20261028-135325-3120017",
+      "cab-subset-20261028-145731-3210350",
+      "cab-subset-20261028-154055-3278028",
+      "cab-subset-20261030-122349-959024",
+      "cab-subset-20261030-180311-1319333"
+    ],
+    "latest_only": true,
+    "trials": 397
+  },
+  "min_attempts": 3,
+  "spread": 0.33
+}
