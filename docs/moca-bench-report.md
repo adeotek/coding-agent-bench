@@ -245,6 +245,37 @@ flips were recorded at v0.7.11, and the only thing separating those releases is 
 like-for-like comparison. Exceptions were counted apart from failures as always: moca 2 × `AgentTimeoutError`,
 OpenCode 7 × `NonZeroAgentExitCodeError` with **5 of them scoring 1.0**.
 
+## Ranking attempt — 2026-10-31, three arms on the v0.7.12 pin
+
+The first run built to answer whether the bench can order the three zen agents at all, pre-registered in
+[`prereg-2026-10-31-ranking.md`](prereg-2026-10-31-ranking.md) before the first trial.
+
+**Registry cells (arm A, 54 trials across three agents, $1.80).** moca **11/18 = 61 %** [39 %, 80 %] — the
+same point estimate as OpenCode (11/18) and four points above Pi (9/18), with every interval overlapping.
+
+| cell | moca | opencode | pi |
+|---|---|---|---|
+| db-wal-recovery | 3/3 | 2/3 | 3/3 |
+| dna-assembly | 1/3 | 1/3 | 0/3 |
+| dna-insert | 1/3 | 2/3 | 1/3 |
+| gcode-to-text | 1/3 | 2/3 | 2/3 |
+| large-scale-text-editing | **3/3** | 1/3 | 1/3 |
+| sanitize-git-repo | 2/3 | 3/3 | 2/3 |
+
+The one cell where moca looks ahead is `large-scale-text-editing` (3/3 against 1/3 and 1/3) — and 3/3 with
+n = 3 has a Wilson floor of 44 %, so it is a lead, not a result. The pre-registered verdict is **unresolved**.
+
+**The 0/3 columns were the release, not the agent.** Earlier attempts on this pin's predecessors put moca at
+0/3 on `gcode-to-text` and 0/3 on `dna-assembly`, and that was written up as a capability gap. On v0.7.12 the
+same cells are 1/3 and 1/3 — level with the others. Nothing in the v0.7.12 changelog targets either task; the
+honest reading is that three attempts cannot distinguish 0 % from 33 %, and the earlier story should never
+have been told at n = 3.
+
+**Repaired cells (arm B, local-only).** On the two cells whose upstream verifiers were broken,
+`configure-git-webserver` and `build-cython-ext`, moca scored **6/6** where the upstream verifier had never
+passed for any agent. On the five authored cells it scored **13/15 = 87 %** against OpenCode's 15/15 and Pi's
+14/15 — the cell set saturates, which is a statement about the tasks, not about moca.
+
 ## What the harness does not measure
 
 - **Task-side cells.** `filter-js-from-html` has 0 passes in 17 attempts across four agents
@@ -701,6 +732,14 @@ so it stays a both-fail cell on this model — a different problem from this one
 The screen also settles the instrument question: **17 of those 21 cells are saturated** (both agents
 pass), so re-scoring them cannot move a ranking. Only 2 discriminate, against the 8 the core-set
 plan required — see `docs/tb2-core-set.md`.
+
+### 2026-10-31 — what the pin looks like after the pre-registered run
+
+moca v0.7.12 is **not measurably better or worse than OpenCode v2.1.4 and Pi 1.4.0** on the cells this bench
+can rank: 61 % [39–80] against 61 % [39–80] and 50 % [29–71], pre-registered decision rule, k = 3 per cell.
+The two verifier-broken cells it never used to pass are now 6/6 under repaired verifiers, and the five
+authored cells saturate for all three agents (87–100 %). The next measurement that could move this number is
+attempts, not tasks: separating 70 % from 30 % needs ~17 attempts per arm.
 
 ## Update procedure
 

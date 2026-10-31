@@ -58,12 +58,15 @@ def write_trial(job: Path, task: str, agent: str, reward: float | None, version:
     (trial / "result.json").write_text(json.dumps(payload))
 
 
-def make_job(root: Path, name: str, rows: list[tuple[str, str, float | None, str]]) -> Path:
+def make_job(root: Path, name: str, rows: list[tuple[str, str, float | None, str]],
+             local_path: str | None = None) -> Path:
     job = root / name
     job.mkdir(parents=True)
-    (job / "config.json").write_text(
-        json.dumps({"agents": [{"name": "x"}], "datasets": [{"task_names": sorted({r[0] for r in rows})}]})
-    )
+    dataset = {"task_names": sorted({r[0] for r in rows})}
+    if local_path:
+        # a local dataset records `path` instead of a registry name+version
+        dataset = {"path": local_path, "task_names": dataset["task_names"]}
+    (job / "config.json").write_text(json.dumps({"agents": [{"name": "x"}], "datasets": [dataset]}))
     for i, (task, agent, reward, version) in enumerate(rows):
         write_trial(job, task, agent, reward, version, i)
     return job
@@ -144,6 +147,28 @@ def main() -> int:
             setattr(stab.bench, "task_side_tasks", old_side)
         check("stability: task-side cells are never ranking",
               reg2["cells"]["beta"]["ranking"] is False and reg2["cells"]["beta"]["task_side"] is True)
+
+        # --- local datasets stay out of the terminal-bench registry ----------
+        # A repaired or authored cell is local-only by policy; the same cell name
+        # can also exist upstream, so the exclusion has to key off the job's own
+        # dataset config, not off the name.
+        make_job(root, "cab-subset-20260103-000000-3",
+                 [("alpha", "moca", 0.0, "v9"), ("alpha", "moca", 0.0, "v9"),
+                  ("alpha", "opencode", 1.0, "v9"), ("alpha", "opencode", 1.0, "v9"),
+                  ("alpha", "opencode", 1.0, "v9")],
+                 local_path="/repo/tasks/authored")
+        local_reg = stab.build(["cab-subset-20260103-000000-3"])
+        check("stability: a local job contributes no cells",
+              local_reg["cells"] == {}, str(sorted(local_reg["cells"]))[:120])
+        check("stability: a local job is recorded as skipped",
+              local_reg["generated_from"]["local_jobs_skipped"] == ["cab-subset-20260103-000000-3"],
+              str(local_reg["generated_from"]["local_jobs_skipped"]))
+        mixed = stab.build(["cab-subset-20260102-000000-2", "cab-subset-20260103-000000-3"])
+        check("stability: a local job cannot move a registry rate",
+              mixed["cells"]["alpha"]["agents"]["moca"]["n"] == 3,
+              f"n={mixed['cells']['alpha']['agents']['moca']['n']}")
+        check("stability: the local job is named in the mixed registry",
+              "cab-subset-20260103-000000-3" in mixed["generated_from"]["local_jobs_skipped"])
 
         setattr(stab, "JOBS", old_root)
 

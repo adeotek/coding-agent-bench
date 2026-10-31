@@ -79,7 +79,10 @@ make -n <target>             # show what a target would run, without running it
 - **`scripts/cell_stability.py`** — derives `docs/cell-stability.json` + `docs/tb2-ranking.txt` from the
   job store: per (cell, agent) k/n, Wilson interval and class (`passes`/`fails`/`flaky`/`insufficient`
   under 3 attempts), plus the cells that can actually rank agents (≥2 agents measured ≥3 times, rates
-  ≥ 0.33 apart, `docs/task-side.json` cells excluded, Harbor's `nop`/`oracle` calibration columns
+  ≥ 0.33 apart, `docs/task-side.json` cells excluded, **and jobs whose dataset is a local `path` skipped** —
+  a repaired or authored cell must never enter the terminal-bench registry, even when its name also exists
+  upstream; the skipped job names are recorded in `generated_from.local_jobs_skipped`), Harbor's
+  `nop`/`oracle` calibration columns
   excluded, only each agent's newest release folded — a rate mixing v0.7.10–v0.7.12 answers nothing).
   Never hand-edit either file; regenerate.
 - **`scripts/determinism_probe.py`** — asks the endpoint whether the sampling noise is removable: N

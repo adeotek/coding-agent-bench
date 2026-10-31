@@ -80,4 +80,72 @@ exploratory and must be labelled as such.
 
 ## Outcome
 
-*(appended after the runs; the text above is frozen)*
+### Result — arms A and B, 117 trials, $2.59 of the $6 cap (2026-10-31)
+
+Every trial in both arms ran to a verifier verdict. Jobs: `cab-subset-20261031-011345-2374062` (A),
+`cab-subset-20261031-121016-3263920` (B, authored), `cab-subset-20261031-131929-3554116` (B, repaired).
+
+**Arm A — the six cells that were supposed to rank (54 trials, 3 h 11 m, $1.80).**
+
+| agent | rate | 95 % Wilson | exceptions |
+|---|---|---|---|
+| moca v0.7.12 | 11/18 = 61 % | [39 %, 80 %] | 1 (agent timeout, reward 0) |
+| opencode v2.1.4 | 11/18 = 61 % | [39 %, 80 %] | 6 (3 of them still scored 1.0) |
+| pi 1.4.0 | 9/18 = 50 % | [29 %, 71 %] | 0 |
+
+| cell | moca | opencode | pi |
+|---|---|---|---|
+| db-wal-recovery | 3/3 | 2/3 | 3/3 |
+| dna-assembly | 1/3 | 1/3 | 0/3 |
+| dna-insert | 1/3 | 2/3 | 1/3 |
+| gcode-to-text | 1/3 | 2/3 | 2/3 |
+| large-scale-text-editing | 3/3 | 1/3 | 1/3 |
+| sanitize-git-repo | 2/3 | 3/3 | 2/3 |
+
+**Rule 2 applies: unresolved at k = 3.** No pair separates — two agents sit on the same 61 % point estimate
+and every interval overlaps every other. The widest raw gap (`large-scale-text-editing`, 3/3 against 1/3)
+still overlaps, because 3/3 has a Wilson floor of 44 %.
+
+**Prediction check.** Half right, and the wrong half matters. I predicted moca would land *below* the other
+two with overlapping intervals: the overlap was right, the ordering was wrong — moca is level with OpenCode
+and above Pi. The "moca is weak on dna/gcode" reading from earlier releases (0/3, 0/3) does not reproduce at
+v0.7.12 (1/3, 1/3); those 0/3s were release artifacts.
+
+**Arm B — the seven owned cells (63 trials, $0.79).**
+
+*Authored five (45 trials):* moca 13/15 = 87 % [62–96], opencode 15/15 = 100 % [80–100],
+pi 14/15 = 93 % [70–99]. Three cells split 2/3 against 3/3 (`csv-normalizer` and `fix-flaky-suite` against
+moca, `safe-cleanup` against pi); every interval overlaps by ≥ 30 points.
+
+*Repaired two (18 trials):* `build-cython-ext` 3/3 for all three; `configure-git-webserver` moca 3/3,
+opencode 2/3, pi 3/3. Against the upstream verifier these cells had **never passed for anyone**.
+
+**Rule 5 applies: the authored set is saturated.** My prediction — at least two cells splitting rather than
+saturating — failed. A split verdict is not a split rate, and 2/3 against 3/3 is exactly the noise the
+registry already refuses to call a ranking. The specs need to be harder, not the sample bigger.
+
+**What the repairs bought.** `configure-git-webserver` and `build-cython-ext` went from 0/N for every agent
+under the upstream verifiers to 6/6, 5/6 and 6/6 under the repaired ones. That is the strongest evidence in
+this stretch that the old 0/N columns were the verifier's opinion, not the agents' capability.
+
+### Deviations from the plan, listed because they happened
+
+1. **Exceptions.** My first pass excluded exception trials from the denominator. Harbor still runs the
+   verifier when the agent exits non-zero, and three OpenCode trials scored 1.0 while raising
+   `NonZeroAgentExitCodeError` (a clean JSON transcript, a finished answer, exit 1 anyway — a v2.1.4 quirk,
+   not an agent failure). Excluding them would have reported OpenCode as 8/12 = 67 % instead of 11/18 = 61 %.
+   All rates above judge by reward, which is the bench's standing rule.
+2. **The pre-run cell list is no longer the derived one.** `docs/tb2-ranking.txt` now names **five** ranking
+   cells, not six: this run's data took `dna-assembly`'s spread from 0.50 to 0.17. The registry is derived on
+   purpose; the pre-registration quoted the version that existed before the measurement.
+3. **`cell_stability.py` gained a local-dataset exclusion** (12 jobs skipped, named in the registry metadata).
+   Not an analysis choice — a correctness fix: without it the authored and repaired cells would have entered
+   the terminal-bench registry under names that also exist upstream.
+
+### What is next, priced
+
+The power table in [`agents-bench-report.md`](agents-bench-report.md) says 70 % vs 30 % needs ~17 attempts
+per arm, 60 % vs 20 % needs ~16. At k = 3 per cell the bench can detect almost nothing at cell level; k = 3
+per arm over many cells is what it can afford. So the next honest step on ranking is **more attempts on few
+cells**, not more cells at k = 3 — and for the owned cells, harder specs first.
+
