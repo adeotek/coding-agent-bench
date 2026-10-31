@@ -65,6 +65,47 @@ run ever) and `dna-assembly` (0/4 here, after Claude passed it once). `configure
 known defective verifier — it flipped again (OpenCode up, everyone else down), which is what a verifier
 that accepts a leftover artifact does.
 
+## Ranking attempt — 2026-10-31, pre-registered (117 trials, 3 h 11 m + 1 h 09 m + 37 m, $2.59)
+
+The first run built to answer "can this bench order these agents at all". Pre-registered in
+[`prereg-2026-10-31-ranking.md`](prereg-2026-10-31-ranking.md) before the first trial, with the decision rule
+fixed in advance: non-overlapping 95 % Wilson intervals or it is written as **unresolved at k = 3**.
+
+**Arm A — the ranking-capable registry cells (54 trials, $1.80).** The six cells `docs/tb2-ranking.txt` named
+before the run, three zen agents, k = 3, one sitting.
+
+| agent | rate | 95 % Wilson |
+|---|---|---|
+| moca v0.7.12 | 11/18 = 61 % | [39 %, 80 %] |
+| opencode v2.1.4 | 11/18 = 61 % | [39 %, 80 %] |
+| pi 1.4.0 | 9/18 = 50 % | [29 %, 71 %] |
+
+Per cell (k = 3 each), the widest raw gap being `large-scale-text-editing`:
+
+| cell | moca | opencode | pi |
+|---|---|---|---|
+| db-wal-recovery | 3/3 | 2/3 | 3/3 |
+| dna-assembly | 1/3 | 1/3 | 0/3 |
+| dna-insert | 1/3 | 2/3 | 1/3 |
+| gcode-to-text | 1/3 | 2/3 | 2/3 |
+| large-scale-text-editing | **3/3** | 1/3 | 1/3 |
+| sanitize-git-repo | 2/3 | 3/3 | 2/3 |
+
+**Verdict: unresolved.** Every pair of intervals overlaps; the pre-registered rule forbids calling a winner.
+This is the answer to "which agent is better" that the data supports at this k: none of them, measurably.
+The registry agrees — after folding this run it still finds five ranking cells, and a 3/3 against 1/3 on one
+of them is not a ranking.
+
+**Arm B — locally-owned cells (63 trials, $0.79), local-only, never quoted beside terminal-bench numbers.**
+Five authored cells: moca 13/15 = 87 %, opencode 15/15 = 100 %, pi 14/15 = 93 %. Two repaired cells
+(`configure-git-webserver`, `build-cython-ext`): moca 6/6, opencode 5/6, pi 6/6 — against upstream verifiers
+those cells had never passed for any agent, which is the cleanest proof that the old 0/N columns were the
+verifier's verdict, not the agents'.
+
+**What the pre-registration caught.** My recorded prediction — moca below both rivals, at least two owned
+cells splitting — was half wrong: moca is level with OpenCode and ahead of Pi, and the owned cells saturate.
+Both misses are in the outcome section, unpicked. That is the difference between a measurement and a story.
+
 ## Protocol
 
 | | |
@@ -74,6 +115,7 @@ that accepts a leftover artifact does.
 | Permissive modes | moca `--mode yolo`, OpenCode `--auto`, Claude Code `bypassPermissions` |
 | Attempts | 1 per task × agent for every sweep before 2026-10-30, `--max-retries 1`, `N_CONCURRENT=2`. **3 attempts is the default from 2026-10-30** — a per-cell verdict from one draw is one sample of that cell's rate (`docs/cell-stability.json`) |
 | Cost basis | zen spend is cash. Claude's `cost_usd` is an **API-equivalent** estimate; the run used a subscription, so its cash cost was $0 |
+| Exceptions | an exception does **not** cancel the verifier's verdict — Harbor runs the verifier anyway, and 3 of 6 OpenCode exceptions in the 2026-10-31 run still scored 1.0. Rates judge by reward; exceptions are listed separately, never folded into "failed" and never used to shrink the denominator |
 | Reporting rule | a cell is quoted as `k/n` with its Wilson interval, and only from a run with ≥3 attempts per cell; `bench_report.py matrix` refuses a single-draw job (exit 2, `--allow-n1` for forensics). Aggregates carry a clustered bootstrap CI. Ten of 24 (cell, agent) pairs were still split at k=3, so a 1–3 cell gap at one attempt is not a ranking |
 
 ## Headline — 24-task set, two identical runs (192 trials) — superseded by the 2026-10-28 sweep above

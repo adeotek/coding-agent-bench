@@ -46,6 +46,19 @@ SPREAD = 0.33         # a cell ranks agents only if their measured rates differ 
 CALIBRATION = {"nop", "oracle"}
 
 
+def is_local_job(job: dict) -> bool:
+    """True when the job ran a local dataset (`datasets[0].path`) instead of the registry.
+
+    Repaired and authored cells are local-only by policy (tasks/README.md): their
+    verdicts are about the verifier this repo wrote, not about terminal-bench, and
+    folding them in would put e.g. `build-cython-ext` next to real cells as if the
+    numbers were comparable. Harbor records the dataset in the job config, so the
+    exclusion is derived rather than guessed from a job name.
+    """
+    datasets = (job.get("config") or {}).get("datasets") or []
+    return bool(datasets) and "path" in datasets[0]
+
+
 def collect(job_names: list[str], latest: bool = True) -> dict:
     """Fold the store into (task, agent) -> [k, n].
 
@@ -57,8 +70,12 @@ def collect(job_names: list[str], latest: bool = True) -> dict:
     """
     rows = []
     newest: dict[str, tuple[str, str]] = {}
+    local_skipped: list[str] = []
     for name in job_names:
         job = bench.load_job(JOBS, name)
+        if is_local_job(job):
+            local_skipped.append(name)
+            continue
         for row in job["rows"]:
             agent = row["agent"]
             if agent in CALIBRATION:
@@ -80,7 +97,13 @@ def collect(job_names: list[str], latest: bool = True) -> dict:
             slot[0] += 1
         versions.setdefault(agent, set()).add(version)
         trials += 1
-    return {"acc": acc, "versions": versions, "trials": trials, "current": current}
+    return {
+        "acc": acc,
+        "versions": versions,
+        "trials": trials,
+        "current": current,
+        "local_skipped": local_skipped,
+    }
 
 
 def classify(k: int, n: int) -> str:
@@ -129,6 +152,9 @@ def build(job_names: list[str], latest: bool = True) -> dict:
             "trials": data["trials"],
             "latest_only": latest,
             "current_version": data["current"],
+            # Local datasets (repaired/authored cells) are in the store but not in
+            # this registry: their numbers are not terminal-bench numbers.
+            "local_jobs_skipped": data["local_skipped"],
         },
         "min_attempts": MIN_ATTEMPTS,
         "spread": SPREAD,

@@ -483,34 +483,47 @@
             "2.1.310"
           ]
         },
-        "opencode": {
+        "moca": {
           "ci": [
-            0.5655,
+            0.4385,
             1.0
           ],
           "class": "passes",
-          "k": 5,
-          "n": 5,
+          "k": 3,
+          "n": 3,
           "rate": 1.0,
+          "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.5291,
+            0.9776
+          ],
+          "class": "flaky",
+          "k": 7,
+          "n": 8,
+          "rate": 0.875,
           "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.5655,
+            0.6756,
             1.0
           ],
           "class": "passes",
-          "k": 5,
-          "n": 5,
+          "k": 8,
+          "n": 8,
           "rate": 1.0,
           "versions": [
             "1.4.0"
           ]
         }
       },
-      "measured_agents": 3,
+      "measured_agents": 4,
       "ranking": true,
       "spread": 0.4,
       "task_side": false
@@ -532,19 +545,6 @@
         },
         "moca": {
           "ci": [
-            0.0,
-            0.5615
-          ],
-          "class": "fails",
-          "k": 0,
-          "n": 3,
-          "rate": 0.0,
-          "versions": [
-            "v0.7.12"
-          ]
-        },
-        "opencode": {
-          "ci": [
             0.0301,
             0.5635
           ],
@@ -553,26 +553,39 @@
           "n": 6,
           "rate": 0.1667,
           "versions": [
+            "v0.7.12"
+          ]
+        },
+        "opencode": {
+          "ci": [
+            0.0632,
+            0.5474
+          ],
+          "class": "flaky",
+          "k": 2,
+          "n": 9,
+          "rate": 0.2222,
+          "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.1876,
-            0.8124
+            0.1206,
+            0.6458
           ],
           "class": "flaky",
           "k": 3,
-          "n": 6,
-          "rate": 0.5,
+          "n": 9,
+          "rate": 0.3333,
           "versions": [
             "1.4.0"
           ]
         }
       },
       "measured_agents": 4,
-      "ranking": true,
-      "spread": 0.5,
+      "ranking": false,
+      "spread": 0.1666,
       "task_side": false
     },
     "dna-insert": {
@@ -592,12 +605,12 @@
         },
         "moca": {
           "ci": [
-            0.0615,
-            0.7923
+            0.0968,
+            0.7
           ],
           "class": "flaky",
-          "k": 1,
-          "n": 3,
+          "k": 2,
+          "n": 6,
           "rate": 0.3333,
           "versions": [
             "v0.7.12"
@@ -605,26 +618,26 @@
         },
         "opencode": {
           "ci": [
-            0.6097,
-            1.0
+            0.565,
+            0.9801
           ],
-          "class": "passes",
-          "k": 6,
-          "n": 6,
-          "rate": 1.0,
+          "class": "flaky",
+          "k": 8,
+          "n": 9,
+          "rate": 0.8889,
           "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.3,
-            0.9032
+            0.2666,
+            0.8112
           ],
           "class": "flaky",
-          "k": 4,
-          "n": 6,
-          "rate": 0.6667,
+          "k": 5,
+          "n": 9,
+          "rate": 0.5556,
           "versions": [
             "1.4.0"
           ]
@@ -632,7 +645,7 @@
       },
       "measured_agents": 4,
       "ranking": true,
-      "spread": 0.6667,
+      "spread": 0.5556,
       "task_side": false
     },
     "extract-elf": {
@@ -827,39 +840,39 @@
         },
         "moca": {
           "ci": [
-            0.0,
-            0.5615
+            0.0301,
+            0.5635
           ],
-          "class": "fails",
-          "k": 0,
-          "n": 3,
-          "rate": 0.0,
+          "class": "flaky",
+          "k": 1,
+          "n": 6,
+          "rate": 0.1667,
           "versions": [
             "v0.7.12"
           ]
         },
         "opencode": {
           "ci": [
-            0.1876,
-            0.8124
+            0.2666,
+            0.8112
           ],
           "class": "flaky",
-          "k": 3,
-          "n": 6,
-          "rate": 0.5,
+          "k": 5,
+          "n": 9,
+          "rate": 0.5556,
           "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.1876,
-            0.8124
+            0.2666,
+            0.8112
           ],
           "class": "flaky",
-          "k": 3,
-          "n": 6,
-          "rate": 0.5,
+          "k": 5,
+          "n": 9,
+          "rate": 0.5556,
           "versions": [
             "1.4.0"
           ]
@@ -867,7 +880,7 @@
       },
       "measured_agents": 4,
       "ranking": true,
-      "spread": 1.0,
+      "spread": 0.8333,
       "task_side": false
     },
     "git-multibranch": {
@@ -1028,39 +1041,39 @@
         },
         "moca": {
           "ci": [
-            0.2077,
-            0.9385
+            0.4365,
+            0.9699
           ],
           "class": "flaky",
-          "k": 2,
-          "n": 3,
-          "rate": 0.6667,
+          "k": 5,
+          "n": 6,
+          "rate": 0.8333,
           "versions": [
             "v0.7.12"
           ]
         },
         "opencode": {
           "ci": [
-            0.1876,
-            0.8124
+            0.1888,
+            0.7334
           ],
           "class": "flaky",
-          "k": 3,
-          "n": 6,
-          "rate": 0.5,
+          "k": 4,
+          "n": 9,
+          "rate": 0.4444,
           "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.0301,
-            0.5635
+            0.0632,
+            0.5474
           ],
           "class": "flaky",
-          "k": 1,
-          "n": 6,
-          "rate": 0.1667,
+          "k": 2,
+          "n": 9,
+          "rate": 0.2222,
           "versions": [
             "1.4.0"
           ]
@@ -1068,7 +1081,7 @@
       },
       "measured_agents": 4,
       "ranking": true,
-      "spread": 0.8333,
+      "spread": 0.7778,
       "task_side": false
     },
     "largest-eigenval": {
@@ -1606,12 +1619,12 @@
         },
         "moca": {
           "ci": [
-            0.2077,
-            0.9385
+            0.3,
+            0.9032
           ],
           "class": "flaky",
-          "k": 2,
-          "n": 3,
+          "k": 4,
+          "n": 6,
           "rate": 0.6667,
           "versions": [
             "v0.7.12"
@@ -1619,26 +1632,26 @@
         },
         "opencode": {
           "ci": [
-            0.4365,
-            0.9699
+            0.565,
+            0.9801
           ],
           "class": "flaky",
-          "k": 5,
-          "n": 6,
-          "rate": 0.8333,
+          "k": 8,
+          "n": 9,
+          "rate": 0.8889,
           "versions": [
             "2.1.4"
           ]
         },
         "pi": {
           "ci": [
-            0.1876,
-            0.8124
+            0.2666,
+            0.8112
           ],
           "class": "flaky",
-          "k": 3,
-          "n": 6,
-          "rate": 0.5,
+          "k": 5,
+          "n": 9,
+          "rate": 0.5556,
           "versions": [
             "1.4.0"
           ]
@@ -1646,7 +1659,7 @@
       },
       "measured_agents": 4,
       "ranking": true,
-      "spread": 0.5,
+      "spread": 0.4444,
       "task_side": false
     },
     "schemelike-metacircular-eval": {
@@ -1759,6 +1772,16 @@
       "cab-audit-20261027-014741-160697",
       "cab-audit-20261027-015352-175488",
       "cab-audit-20261027-015714-186988",
+      "cab-authored-audit",
+      "cab-authored-audit2",
+      "cab-authored-audit3",
+      "cab-authored-csv",
+      "cab-local-audit-authored",
+      "cab-local-audit-repairs",
+      "cab-repair-audit3",
+      "cab-repair-configure-git",
+      "cab-repair-filterjs2",
+      "cab-repair-filterjs3",
       "cab-smoke-20261010-211446",
       "cab-smoke-20261010-211659",
       "cab-smoke-20261011-003746",
@@ -1810,10 +1833,27 @@
       "cab-subset-20261028-145731-3210350",
       "cab-subset-20261028-154055-3278028",
       "cab-subset-20261030-122349-959024",
-      "cab-subset-20261030-180311-1319333"
+      "cab-subset-20261030-180311-1319333",
+      "cab-subset-20261031-011345-2374062",
+      "cab-subset-20261031-121016-3263920",
+      "cab-subset-20261031-131929-3554116"
     ],
     "latest_only": true,
-    "trials": 397
+    "local_jobs_skipped": [
+      "cab-authored-audit",
+      "cab-authored-audit2",
+      "cab-authored-audit3",
+      "cab-authored-csv",
+      "cab-local-audit-authored",
+      "cab-local-audit-repairs",
+      "cab-repair-audit3",
+      "cab-repair-configure-git",
+      "cab-repair-filterjs2",
+      "cab-repair-filterjs3",
+      "cab-subset-20261031-121016-3263920",
+      "cab-subset-20261031-131929-3554116"
+    ],
+    "trials": 451
   },
   "min_attempts": 3,
   "spread": 0.33

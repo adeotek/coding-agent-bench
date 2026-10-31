@@ -1,0 +1,8 @@
+# The six cells docs/tb2-ranking.txt calls ranking-capable (measured spread >= 0.33).
+# Used by the pre-registered arm A in docs/prereg-2026-10-31-ranking.md.
+db-wal-recovery
+dna-assembly
+dna-insert
+gcode-to-text
+large-scale-text-editing
+sanitize-git-repo
